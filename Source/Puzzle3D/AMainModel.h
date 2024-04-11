@@ -33,7 +33,11 @@ public:
 	// Called every frame
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
+	//UFUNCTION(BlueprintCallable) // Esta macro torna o método acessível em Blueprint
+	//void CheckPosition(UStaticMeshComponent* mesh);
+
 private:
 	void Explode();
 	void GetRandomPointInSphere(FVector& OutPosition, const FVector& Center);
+
 };

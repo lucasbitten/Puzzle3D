@@ -17,8 +17,6 @@ UAMainModel::UAMainModel()
 // Called when the game starts
 void UAMainModel::BeginPlay()
 {
-	UE_LOG(LogTemp, Warning, TEXT("Mensagem de aviso: Isso é um exemplo de log no console."));
-
 	Super::BeginPlay();
 
 	ModelActorReference = GetOwner();
@@ -36,6 +34,19 @@ void UAMainModel::TickComponent(float DeltaTime, ELevelTick TickType, FActorComp
 	// ...
 }
 
+//void UAMainModel::CheckPosition(UStaticMeshComponent* mesh)
+//{
+//	UE_LOG(LogTemp, Warning, TEXT("CheckPosition."));
+//
+//	auto location = mesh->GetComponentLocation();
+//	auto distanceToOrigin = FVector::Distance(location, FVector::ZeroVector);
+//
+//	if (distanceToOrigin < PositionThreshold)
+//	{
+//		mesh->SetWorldLocation(FVector::ZeroVector);
+//	}
+//}
+
 void UAMainModel::Explode()
 {
 	TArray<UStaticMeshComponent*> MeshComponents;
@@ -44,7 +55,7 @@ void UAMainModel::Explode()
 	int skippedPieces = 0;
 	for (UStaticMeshComponent* MeshComponent : MeshComponents)
 	{
-		if (MeshComponent)
+		if (MeshComponent) 
 		{
 			if (skippedPieces < InitialPieces)
 			{
