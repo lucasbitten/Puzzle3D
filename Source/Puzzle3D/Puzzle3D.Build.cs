@@ -8,9 +8,18 @@ public class Puzzle3D : ModuleRules
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 	
-		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore" });
+		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore"});
 
-		PrivateDependencyModuleNames.AddRange(new string[] {  });
+		PrivateDependencyModuleNames.AddRange(new string[] {
+            "Slate",
+            "SlateCore",
+            "EditorScriptingUtilities", // Adicione este módulo
+            "UnrealEd", // Adicione este módulo
+            "Blutility", // Adicione este módulo
+            "AssetTools", // Adicione este módulo
+            "AssetRegistry" // Adicione este módulo
+		
+		});
 
 		// Uncomment if you are using Slate UI
 		// PrivateDependencyModuleNames.AddRange(new string[] { "Slate", "SlateCore" });
