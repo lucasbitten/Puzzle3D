@@ -54,6 +54,7 @@ void APuzzleModel::Explode()
 				PuzzlePiece->SetIsLocked(true);
 				continue;
 			}
+			PuzzlePiece->SetIsLocked(false);
 
 			// Calcula uma nova posição aleatória dentro da esfera
 			FVector NewPosition;
