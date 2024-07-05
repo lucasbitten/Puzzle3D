@@ -52,6 +52,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Debug")
 	bool ShowDebug;
 
+	UPROPERTY(EditAnywhere, Category = "Debug")
+	bool CanLockPieces;
+
 private:
 	UFUNCTION(BlueprintCallable)
 	void Explode();

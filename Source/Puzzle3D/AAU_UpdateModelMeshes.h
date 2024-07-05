@@ -16,4 +16,7 @@ class PUZZLE3D_API UAAU_UpdateModelMeshes : public UAssetActionUtility
 public:
 	UFUNCTION(BlueprintCallable, CallInEditor, Category = "MyUtilities")
 	void AddPiecesComponentToMeshes();
+
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "MyUtilities")
+	void RemoveReorientedPlanes();  
 };

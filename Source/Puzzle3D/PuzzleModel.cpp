@@ -41,6 +41,12 @@ void APuzzleModel::Explode()
 	{
 		if (PuzzlePiece != nullptr)
 		{
+			USceneComponent* MyParentComponent = Cast<USceneComponent>(PuzzlePiece->GetAttachParent());
+			if (MyParentComponent == nullptr)
+			{
+				continue;
+			}
+
 			if (PuzzlePiece->GetIsShell())
 			{
 				continue;
@@ -48,22 +54,24 @@ void APuzzleModel::Explode()
 
 			if (skippedPieces < InitialPieces)
 			{
-				PuzzlePiece->SetRelativeLocation(PuzzlePiece->GetInitialRelativePosition());
-				PuzzlePiece->SetRelativeRotation(FQuat::Identity);
+				MyParentComponent->SetRelativeLocation(PuzzlePiece->GetParentInitialRelativePosition());
+				MyParentComponent->SetRelativeRotation(PuzzlePiece->GetParentInitialRelativeRotator());
 				skippedPieces++;
 				PuzzlePiece->SetIsLocked(true);
 				continue;
 			}
+
+			PuzzlePiece->SetCanLockPieces(CanLockPieces);
 			PuzzlePiece->SetIsLocked(false);
 
 			// Calcula uma nova posição aleatória dentro da esfera
 			FVector NewPosition;
 			GetRandomPointInSphere(NewPosition, ActorPos);
 
-			PuzzlePiece->SetInitialNormal(FVector::Zero());
+			PuzzlePiece->CalculateRotationOffset();
 
 			// Define a nova posição para o componente Static Mesh
-			PuzzlePiece->SetWorldLocation(NewPosition);
+			MyParentComponent->SetWorldLocation(NewPosition);
 		}
 	}
 }

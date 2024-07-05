@@ -4,66 +4,51 @@
 #include "PuzzlePiecesComponent.h"
 #include "Kismet/KismetMathLibrary.h"
 
-void UPuzzlePiecesComponent::SetInitialRelativePosition(FVector initialRelativePos)
-{
-    InitialRelativePosition = initialRelativePos;
-}
-
-const FVector UPuzzlePiecesComponent::GetInitialRelativePosition() const
-{
-	return InitialRelativePosition;
-}
 
 void UPuzzlePiecesComponent::BeginPlay()
 {
     Super::BeginPlay();
-    SetInitialRelativePosition(GetRelativeLocation());
+
+    CalculateInitialRotation();
 }
 
-
-void UPuzzlePiecesComponent::SetInitialNormal(FVector EndLocation)
+void UPuzzlePiecesComponent::SetParentInitialRelativePosition(FVector initialParentRelativePos)
 {
-
-    FVector StartLocation = GetComponentLocation();
-
-    FHitResult HitResult;
-    FCollisionQueryParams CollisionParams;
-    CollisionParams.AddIgnoredComponent(this);
-    CollisionParams.bTraceComplex = true;
-
-    ECollisionChannel TraceChannel = ECC_GameTraceChannel2;
-
-    UWorld* World = GEditor->GetEditorWorldContext().World();
-    if (!World)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("No Editor World found"));
-        return;
-    }
-
-
-    bool bHit = World->LineTraceSingleByChannel(
-        HitResult,
-        StartLocation,
-        EndLocation,
-        ECollisionChannel::ECC_WorldDynamic,
-        CollisionParams
-    );
-
-    if (bHit)
-    {
-        UE_LOG(LogTemp, Log, TEXT("Hit: %s"), *HitResult.GetActor()->GetName());
-        InitialNormal = HitResult.ImpactNormal;
-    }
-    else
-    {
-        UE_LOG(LogTemp, Log, TEXT("No Hit"));
-    }
+    InitialParentRelativePosition = initialParentRelativePos;
 }
 
-const FVector UPuzzlePiecesComponent::GetInitialNormal() const
+const FVector UPuzzlePiecesComponent::GetParentInitialRelativePosition() const
 {
-	return InitialNormal;
+	return InitialParentRelativePosition;
 }
+
+void UPuzzlePiecesComponent::SetParentInitialRelativeRotator(FRotator initialRotation)
+{
+    InitialParentRelativeRotator = initialRotation;
+}
+
+const FRotator UPuzzlePiecesComponent::GetParentInitialRelativeRotator() const
+{
+    return InitialParentRelativeRotator;
+}
+
+void UPuzzlePiecesComponent::CalculateRotationOffset()
+{
+    if (USceneComponent* ParentComponent = GetAttachParent())
+    {
+        FRotator ParentRotation = ParentComponent->GetComponentRotation();
+        FRotator ChildRotation = GetRelativeRotation();
+
+        // Calculate the rotation offset
+        RotationOffset = ChildRotation - ParentRotation;
+    }
+}
+
+FRotator UPuzzlePiecesComponent::GetRotationOffset() const
+{
+    return RotationOffset;
+}
+
 
 void UPuzzlePiecesComponent::SetShellRelativePosition(FVector position)
 {
@@ -77,12 +62,30 @@ const FVector UPuzzlePiecesComponent::GetShellRelativePosition() const
 
 const bool UPuzzlePiecesComponent::GetIsLocked() const
 {
-    return IsLocked;
+    if (CanLockPieces)
+    {
+        return IsLocked;
+    }
+    
+    return false;
+
 }
 
 const void UPuzzlePiecesComponent::SetIsLocked(bool locked)
 {
-    IsLocked = locked;
+    if (CanLockPieces)
+    {
+        IsLocked = locked;
+    }
+    else
+    {
+        IsLocked = false;
+    }
+}
+
+const void UPuzzlePiecesComponent::SetCanLockPieces(bool canLock)
+{
+    CanLockPieces = canLock;
 }
 
 const bool UPuzzlePiecesComponent::GetIsShell() const
@@ -95,14 +98,37 @@ const void UPuzzlePiecesComponent::SetIsShell(bool isShell)
     IsShell = isShell;
 }
 
-const void UPuzzlePiecesComponent::AlignToSurfaceNormal(FVector currentNormal)
+// Function to calculate and store initial rotation
+void UPuzzlePiecesComponent::CalculateInitialRotation()
 {
-    FRotator LookAtRotation = UKismetMathLibrary::FindLookAtRotation(GetComponentLocation(), currentNormal);
+    USceneComponent* MyParentComponent = Cast<USceneComponent>(GetAttachParent());
+    if (MyParentComponent == nullptr)
+    {
+        return;
+    }
+    InitialRotation = MyParentComponent->GetComponentRotation();
 
-    //FRotator RotacaoInicial = UKismetMathLibrary::FindLookAtRotation(InitialPosition, InitialNormal);
-    //FRotator RotacaoFinal = UKismetMathLibrary::FindLookAtRotation(GetRelativeLocation(), currentNormal);
-    //FRotator RotacaoIncremental = RotacaoFinal - RotacaoInicial;
-    //FRotator NovaRotacao = GetRelativeRotation() + RotacaoIncremental;
-    SetRelativeRotation(LookAtRotation);
+    SetParentInitialRelativePosition(MyParentComponent->GetRelativeLocation());
+    SetParentInitialRelativeRotator(MyParentComponent->GetRelativeRotation());
+    CalculateRotationOffset();
 
+    InitialQuat = FRotationMatrix::MakeFromX(MyParentComponent->GetForwardVector()).ToQuat();
+}
+
+void UPuzzlePiecesComponent::MoveParentToSurface(USceneComponent* ParentComponent, FVector ImpactPoint, FVector ImpactNormal, float Offset)
+{
+    if (ParentComponent)
+    {
+        FVector OffsetPosition = ImpactPoint + (ImpactNormal * Offset);
+
+        // Set the location of the parent to the impact point
+        ParentComponent->SetWorldLocation(OffsetPosition);
+
+        // Calculate the rotation such that the Z-axis of the parent points towards the impact normal
+        FRotator LookAtRotation = FRotationMatrix::MakeFromX(ImpactNormal).Rotator();
+
+        // Combine the look-at rotation with the initial rotation to maintain the correct orientation
+        FRotator NewRotation = LookAtRotation + InitialRotation;
+        ParentComponent->SetWorldRotation(NewRotation);
+    }
 }

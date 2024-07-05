@@ -19,40 +19,58 @@ protected:
 
 public:
 
-	void SetInitialRelativePosition(FVector initialPos);
-
+	void SetParentInitialRelativePosition(FVector initialPos);
 	UFUNCTION(BlueprintCallable)
-	const FVector GetInitialRelativePosition() const;
+	const FVector GetParentInitialRelativePosition() const;
 
-	void SetInitialNormal(FVector direction);
-
+	void SetParentInitialRelativeRotator(FRotator initialRotation);
 	UFUNCTION(BlueprintCallable)
-	const FVector GetInitialNormal() const;
+	const FRotator GetParentInitialRelativeRotator() const;
+
+
+
+
+	// Function to calculate and store rotation offset based on parent component
+	UFUNCTION(BlueprintCallable, Category = "Puzzle")
+	void CalculateRotationOffset();
+
+	// Function to get the stored rotation offset
+	UFUNCTION(BlueprintCallable, Category = "Puzzle")
+	FRotator GetRotationOffset() const;
+
+
 
 	void SetShellRelativePosition(FVector position);
-
 	UFUNCTION(BlueprintCallable)
 	const FVector GetShellRelativePosition() const;
 
 
-	UFUNCTION(BlueprintCallable)
-	const bool GetIsLocked() const;
 
 	UFUNCTION(BlueprintCallable)
+	const bool GetIsLocked() const;
+	UFUNCTION(BlueprintCallable)
 	const void SetIsLocked(bool locked);
+
+
+	const void SetCanLockPieces(bool canLock);
+
 
 	const bool GetIsShell() const;
 
 	const void SetIsShell(bool isShell);
 
 private:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Initial Info", meta = (AllowPrivateAccess = "true"))
-	FVector InitialRelativePosition;
+	UPROPERTY(VisibleAnywhere, Category = "Initial Info", meta = (AllowPrivateAccess = "true"))
+	FVector InitialParentRelativePosition;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Initial Info", meta = (AllowPrivateAccess = "true"))
-	FVector InitialNormal;
+	UPROPERTY(VisibleAnywhere, Category = "Initial Info", meta = (AllowPrivateAccess = "true"))
+	FRotator InitialParentRelativeRotator;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Initial Info", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(VisibleAnywhere, Category = "Initial Info", meta = (AllowPrivateAccess = "true"))
+	FQuat InitialQuat;
+
+
+	UPROPERTY(VisibleAnywhere, Category = "Initial Info", meta = (AllowPrivateAccess = "true"))
 	FVector ShellRelativePosition;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Initial Info", meta = (AllowPrivateAccess = "true"))
@@ -61,9 +79,19 @@ private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Initial Info", meta = (AllowPrivateAccess = "true"))
 	bool IsShell;
 
-	UFUNCTION(BlueprintCallable)
-	const void AlignToSurfaceNormal(FVector currentNormal);
+	// Function to calculate and store initial rotation
+	UFUNCTION(BlueprintCallable, Category = "Puzzle")
+	void CalculateInitialRotation();
 
+	UFUNCTION(BlueprintCallable, Category = "Puzzle")
+	void MoveParentToSurface(USceneComponent* ParentComponent, FVector ImpactPoint, FVector ImpactNormal, float Offset);
+
+
+	UPROPERTY(EditAnywhere, Category = "Debug")
+	bool CanLockPieces;
+
+	FRotator RotationOffset;
+	FRotator InitialRotation;
 
 
 };
