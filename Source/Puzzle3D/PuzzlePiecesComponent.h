@@ -59,6 +59,26 @@ public:
 
 	const void SetIsShell(bool isShell);
 
+
+	float CalculateBlendFactor(float Value, float Threshold);
+
+
+	UFUNCTION(BlueprintCallable, Category = "Rotation")
+	static FRotator AlignEulerToVectorFixedPivot(
+		const FRotator& InputRotation,
+		const FVector& Vector,
+		float Factor,
+		FVector LocalMainAxis,
+		FVector LocalPivotAxis);
+
+	UFUNCTION(BlueprintCallable, Category = "Rotation")
+	static FRotator AlignEulerToVectorAuto(
+		const FRotator& InputRotation,
+		const FVector& Vector,
+		float Factor,
+		FVector LocalMainAxis);
+
+
 private:
 	UPROPERTY(VisibleAnywhere, Category = "Initial Info", meta = (AllowPrivateAccess = "true"))
 	FVector InitialParentRelativePosition;
@@ -92,6 +112,10 @@ private:
 
 	FRotator RotationOffset;
 	FRotator InitialRotation;
+	FQuat RotationOffsetQuat;
+
+
+
 
 
 };
