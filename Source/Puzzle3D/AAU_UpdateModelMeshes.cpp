@@ -97,7 +97,6 @@ void UAAU_UpdateModelMeshes::AddPiecesComponentToMeshes()
                                 // Ajustar canais específicos
                                 NewPuzzlePartComponent->SetCollisionResponseToChannel(ECC_GameTraceChannel1, ECollisionResponse::ECR_Block); // Supondo que Pieces é ECC_GameTraceChannel1
                                 NewPuzzlePartComponent->SetCollisionResponseToChannel(ECC_GameTraceChannel2, ECollisionResponse::ECR_Ignore); // Supondo que Shell é ECC_GameTraceChannel2
-                                NewPuzzlePartComponent->SetShellRelativePosition(ShellRelativePosition);
                             }
 
                             NewPuzzlePartComponent->SetIsShell(IsShell);

@@ -63,4 +63,7 @@ private:
 
 	void DrawDebugWiredSphere() const;
 
+	UPROPERTY(EditAnywhere, Category = "Move Info")
+	float OffsetDistance = 20.0;
+
 };

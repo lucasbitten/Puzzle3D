@@ -19,31 +19,17 @@ protected:
 
 public:
 
-	void SetParentInitialRelativePosition(FVector initialPos);
+	void SetParentInitialWorldPosition(FVector initialPos);
 	UFUNCTION(BlueprintCallable)
-	const FVector GetParentInitialRelativePosition() const;
+	const FVector GetParentInitialWorldPosition() const;
 
-	void SetParentInitialRelativeRotator(FRotator initialRotation);
+	void SetParentInitialWorldPositionWithOffset(FVector initialPos);
 	UFUNCTION(BlueprintCallable)
-	const FRotator GetParentInitialRelativeRotator() const;
+	const FVector GetParentInitialWorldPositionWithOffset() const;
 
-
-
-
-	// Function to calculate and store rotation offset based on parent component
-	UFUNCTION(BlueprintCallable, Category = "Puzzle")
-	void CalculateRotationOffset();
-
-	// Function to get the stored rotation offset
-	UFUNCTION(BlueprintCallable, Category = "Puzzle")
-	FRotator GetRotationOffset() const;
-
-
-
-	void SetShellRelativePosition(FVector position);
+	void SetParentInitialWorldRotator(FRotator initialRotation);
 	UFUNCTION(BlueprintCallable)
-	const FVector GetShellRelativePosition() const;
-
+	const FRotator GetParentInitialWorldRotator() const;
 
 
 	UFUNCTION(BlueprintCallable)
@@ -59,35 +45,20 @@ public:
 
 	const void SetIsShell(bool isShell);
 
+	void SetOffsetDistance(float offset);
 
-	float CalculateBlendFactor(float Value, float Threshold);
-
-
-	UFUNCTION(BlueprintCallable, Category = "Rotation")
-	static FRotator AlignEulerToVectorFixedPivot(
-		const FRotator& InputRotation,
-		const FVector& Vector,
-		float Factor,
-		FVector LocalMainAxis,
-		FVector LocalPivotAxis);
-
-	UFUNCTION(BlueprintCallable, Category = "Rotation")
-	static FRotator AlignEulerToVectorAuto(
-		const FRotator& InputRotation,
-		const FVector& Vector,
-		float Factor,
-		FVector LocalMainAxis);
-
+	UFUNCTION(BlueprintCallable)
+	float GetOffsetDistance();
 
 private:
 	UPROPERTY(VisibleAnywhere, Category = "Initial Info", meta = (AllowPrivateAccess = "true"))
-	FVector InitialParentRelativePosition;
+	FVector InitialParentWorldPosition;
 
 	UPROPERTY(VisibleAnywhere, Category = "Initial Info", meta = (AllowPrivateAccess = "true"))
-	FRotator InitialParentRelativeRotator;
+	FRotator InitialParentWorldRotator;
 
 	UPROPERTY(VisibleAnywhere, Category = "Initial Info", meta = (AllowPrivateAccess = "true"))
-	FQuat InitialQuat;
+	FVector InitialParentWorldPositionWithOffset;
 
 
 	UPROPERTY(VisibleAnywhere, Category = "Initial Info", meta = (AllowPrivateAccess = "true"))
@@ -99,23 +70,11 @@ private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Initial Info", meta = (AllowPrivateAccess = "true"))
 	bool IsShell;
 
-	// Function to calculate and store initial rotation
-	UFUNCTION(BlueprintCallable, Category = "Puzzle")
-	void CalculateInitialRotation();
-
-	UFUNCTION(BlueprintCallable, Category = "Puzzle")
-	void MoveParentToSurface(USceneComponent* ParentComponent, FVector ImpactPoint, FVector ImpactNormal, float Offset);
-
 
 	UPROPERTY(EditAnywhere, Category = "Debug")
 	bool CanLockPieces;
 
-	FRotator RotationOffset;
-	FRotator InitialRotation;
-	FQuat RotationOffsetQuat;
 
-
-
-
+	float OffsetDistance;
 
 };

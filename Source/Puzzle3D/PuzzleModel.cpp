@@ -3,6 +3,7 @@
 
 #include "PuzzleModel.h"
 #include "Engine/StaticMeshActor.h"
+#include <Kismet/KismetMathLibrary.h>
 
 // Sets default values
 APuzzleModel::APuzzleModel()
@@ -37,41 +38,86 @@ void APuzzleModel::Explode()
 {
 	auto ActorPos = GetActorLocation();
 	int skippedPieces = 0;
+
+	UPuzzlePiecesComponent* Shell = nullptr;
 	for (UPuzzlePiecesComponent* PuzzlePiece : PuzzlePiecesComponents)
 	{
 		if (PuzzlePiece != nullptr)
 		{
-			USceneComponent* MyParentComponent = Cast<USceneComponent>(PuzzlePiece->GetAttachParent());
-			if (MyParentComponent == nullptr)
+			if (PuzzlePiece->GetIsShell())
 			{
-				continue;
+				Shell = PuzzlePiece;
+				break;
 			}
+		}
+	}
+
+	for (UPuzzlePiecesComponent* PuzzlePiece : PuzzlePiecesComponents)
+	{
+		if (PuzzlePiece != nullptr)
+		{
 
 			if (PuzzlePiece->GetIsShell())
 			{
 				continue;
 			}
 
-			if (skippedPieces < InitialPieces)
+			// Crie um novo componente de cena vazio
+			FName NewComponentName = FName(*FString::Printf(TEXT("%s_Parent"), *PuzzlePiece->GetName()));
+			USceneComponent* NewPieceParent = NewObject<USceneComponent>(this, USceneComponent::StaticClass(), NewComponentName);
+
+			if (NewPieceParent)
 			{
-				MyParentComponent->SetRelativeLocation(PuzzlePiece->GetParentInitialRelativePosition());
-				MyParentComponent->SetRelativeRotation(PuzzlePiece->GetParentInitialRelativeRotator());
-				skippedPieces++;
-				PuzzlePiece->SetIsLocked(true);
-				continue;
+				// Anexe o novo componente de cena vazio ao root component do ator
+				NewPieceParent->SetupAttachment(RootComponent);
+
+				// Adicione e registre o novo componente
+				NewPieceParent->RegisterComponent();
+				AddInstanceComponent(NewPieceParent);
+
+				PuzzlePiece->SetParentInitialWorldPosition(PuzzlePiece->GetComponentLocation());
+
+				// Anexe o componente existente ao novo componente de cena vazio
+				PuzzlePiece->AttachToComponent(NewPieceParent, FAttachmentTransformRules::KeepWorldTransform);
+				FRotator InitialRotator;
+
+				NewPieceParent->SetWorldLocation(PuzzlePiece->GetComponentLocation());
+				InitialRotator = UKismetMathLibrary::FindLookAtRotation(NewPieceParent->GetComponentLocation(), Shell->GetComponentLocation());
+
+				NewPieceParent->SetWorldRotation(InitialRotator);
+				PuzzlePiece->SetParentInitialWorldRotator(NewPieceParent->GetComponentRotation());
+
+				PuzzlePiece->SetOffsetDistance(OffsetDistance);
+				PuzzlePiece->SetParentInitialWorldPositionWithOffset(NewPieceParent->GetComponentLocation() + (NewPieceParent->GetForwardVector() * -OffsetDistance));
+
+				FRotator CurrentRotator = PuzzlePiece->GetComponentRotation();
+				FRotator PieceEndRotator = UKismetMathLibrary::ComposeRotators(CurrentRotator, UKismetMathLibrary::NegateRotator(InitialRotator));
+
+				PuzzlePiece->SetWorldRotation(PieceEndRotator);
+
+				if (skippedPieces < InitialPieces)
+				{
+					PuzzlePiece->SetWorldRotation(PieceEndRotator);
+					PuzzlePiece->SetRelativeLocation(FVector::Zero());
+					skippedPieces++;
+					PuzzlePiece->SetIsLocked(true);
+					continue;
+				}
+
+				PuzzlePiece->SetCanLockPieces(CanLockPieces);
+				PuzzlePiece->SetIsLocked(false);
+
+				// Calcula uma nova posição aleatória dentro da esfera
+				FVector NewPosition;
+				GetRandomPointInSphere(NewPosition, ActorPos);
+
+				// Define a nova posição para o componente Static Mesh
+				NewPieceParent->SetWorldLocation(NewPosition);
+				PuzzlePiece->SetRelativeLocation(FVector::Zero());
+				PuzzlePiece->SetWorldRotation(PieceEndRotator);
+
+
 			}
-
-			PuzzlePiece->SetCanLockPieces(CanLockPieces);
-			PuzzlePiece->SetIsLocked(false);
-
-			// Calcula uma nova posição aleatória dentro da esfera
-			FVector NewPosition;
-			GetRandomPointInSphere(NewPosition, ActorPos);
-
-			PuzzlePiece->CalculateRotationOffset();
-
-			// Define a nova posição para o componente Static Mesh
-			MyParentComponent->SetWorldLocation(NewPosition);
 		}
 	}
 }
