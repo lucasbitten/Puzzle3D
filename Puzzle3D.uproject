@@ -38,6 +38,10 @@
 		{
 			"Name": "WidgetToolsPlugin",
 			"Enabled": false
+		},
+		{
+			"Name": "VictoryBPLibrary",
+			"Enabled": true
 		}
 	]
 }
