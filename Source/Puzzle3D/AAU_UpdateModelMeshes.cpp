@@ -14,8 +14,10 @@
 #include "Engine/SCS_Node.h"
 #include "Engine/SimpleConstructionScript.h"
 #include "GameFramework/Actor.h"
+#include "InnerMesh.h"
 
 #include "Editor/UnrealEd/Public/Editor.h"
+#include "PuzzleModel.h"
 
 
 void UAAU_UpdateModelMeshes::AddPiecesComponentToMeshes()
@@ -34,10 +36,14 @@ void UAAU_UpdateModelMeshes::AddPiecesComponentToMeshes()
                 // Modifique o blueprint
                 Blueprint->Modify();
 
+
+
                 // Iterar pelos nós do SCS
                 TArray<USCS_Node*> Nodes = SCS->GetAllNodes();
 
                 int32 count = 0;
+                int32 innerMeshCount = 0;
+
                 FVector ShellRelativePosition = FVector::Zero();
                 TArray<USCS_Node*> NodesToRemove;
                 for (USCS_Node* Node : Nodes)
@@ -48,58 +54,84 @@ void UAAU_UpdateModelMeshes::AddPiecesComponentToMeshes()
                         // Verifique a validade da malha original
                         if (StaticMeshComponent->GetStaticMesh() && StaticMeshComponent->GetStaticMesh()->IsMeshDescriptionValid(0))
                         {
-                            bool IsShell = StaticMeshComponent->GetName().Contains(TEXT("Shell"));
-
-                            // Salve as propriedades que você deseja manter
-                            UStaticMesh* Mesh = StaticMeshComponent->GetStaticMesh();
-                            FVector Location = StaticMeshComponent->GetRelativeLocation();
-                            FRotator Rotation = StaticMeshComponent->GetRelativeRotation();
-                            FVector Scale = StaticMeshComponent->GetRelativeScale3D();
-
-                            FString NewName;
-                            if (IsShell)
+                            USCS_Node* NewNode = nullptr;
+                            if (StaticMeshComponent->GetName().Contains(TEXT("SphereAux")))
                             {
-                                NewName = FString::Printf(TEXT("PuzzlePart_Shell"));
+                                FVector Location = StaticMeshComponent->GetRelativeLocation();
+                                FRotator Rotation = StaticMeshComponent->GetRelativeRotation();
+                                FVector Scale = StaticMeshComponent->GetRelativeScale3D();
+
+                                FString NewName = FString::Printf(TEXT("SphereAux_%d"), innerMeshCount++);
+                                NewNode = SCS->CreateNode(UInnerMesh::StaticClass(), *NewName);
+
+                                UInnerMesh* NewInnerMesh = Cast<UInnerMesh>(NewNode->ComponentTemplate);
+
+                                if (!NewInnerMesh)
+                                {
+                                    UE_LOG(LogTemp, Error, TEXT("Failed to create NewInnerMesh for %s"), *StaticMeshComponent->GetName());
+                                    continue;
+                                }
+
+                                NewInnerMesh->SetRelativeLocation(Location);
+                                NewInnerMesh->SetRelativeRotation(Rotation);
+                                NewInnerMesh->SetRelativeScale3D(Scale);
+
                             }
                             else
                             {
-                                NewName = FString::Printf(TEXT("PuzzlePart_%d"), count++);
+                                bool IsShell = StaticMeshComponent->GetName().Contains(TEXT("Shell"));
+
+                                // Salve as propriedades que você deseja manter
+                                UStaticMesh* Mesh = StaticMeshComponent->GetStaticMesh();
+                                FVector Location = StaticMeshComponent->GetRelativeLocation();
+                                FRotator Rotation = StaticMeshComponent->GetRelativeRotation();
+                                FVector Scale = StaticMeshComponent->GetRelativeScale3D();
+
+                                FString NewName;
+                                if (IsShell)
+                                {
+                                    NewName = FString::Printf(TEXT("PuzzlePart_Shell"));
+                                }
+                                else
+                                {
+                                    NewName = FString::Printf(TEXT("PuzzlePart_%d"), count++);
+                                }
+
+                                // Crie um novo nó no SCS com o novo componente
+                                NewNode = SCS->CreateNode(UPuzzlePiecesComponent::StaticClass(), *NewName);
+                                UPuzzlePiecesComponent* NewPuzzlePartComponent = Cast<UPuzzlePiecesComponent>(NewNode->ComponentTemplate);
+
+                                if (!NewPuzzlePartComponent)
+                                {
+                                    UE_LOG(LogTemp, Error, TEXT("Failed to create PuzzlePiecesComponent for %s"), *StaticMeshComponent->GetName());
+                                    continue;
+                                }
+
+                                // Copie as propriedades
+                                NewPuzzlePartComponent->SetStaticMesh(Mesh);
+                                NewPuzzlePartComponent->SetRelativeLocation(Location);
+                                NewPuzzlePartComponent->SetRelativeRotation(Rotation);
+                                NewPuzzlePartComponent->SetRelativeScale3D(Scale);
+
+                                // Definir o perfil de colisão padrão
+                                NewPuzzlePartComponent->SetCollisionProfileName(TEXT("BlockAllDynamic"));
+
+                                if (IsShell)
+                                {
+                                    // Ajustar canais específicos
+                                    NewPuzzlePartComponent->SetCollisionResponseToChannel(ECC_GameTraceChannel1, ECollisionResponse::ECR_Ignore); // Supondo que Pieces é ECC_GameTraceChannel1
+                                    NewPuzzlePartComponent->SetCollisionResponseToChannel(ECC_GameTraceChannel2, ECollisionResponse::ECR_Block); // Supondo que Shell é ECC_GameTraceChannel2
+                                    ShellRelativePosition = StaticMeshComponent->GetRelativeLocation();
+                                }
+                                else
+                                {
+                                    // Ajustar canais específicos
+                                    NewPuzzlePartComponent->SetCollisionResponseToChannel(ECC_GameTraceChannel1, ECollisionResponse::ECR_Block); // Supondo que Pieces é ECC_GameTraceChannel1
+                                    NewPuzzlePartComponent->SetCollisionResponseToChannel(ECC_GameTraceChannel2, ECollisionResponse::ECR_Ignore); // Supondo que Shell é ECC_GameTraceChannel2
+                                }
+
+                                NewPuzzlePartComponent->SetIsShell(IsShell);
                             }
-
-                            // Crie um novo nó no SCS com o novo componente
-                            USCS_Node* NewNode = SCS->CreateNode(UPuzzlePiecesComponent::StaticClass(), *NewName);
-                            UPuzzlePiecesComponent* NewPuzzlePartComponent = Cast<UPuzzlePiecesComponent>(NewNode->ComponentTemplate);
-
-                            if (!NewPuzzlePartComponent)
-                            {
-                                UE_LOG(LogTemp, Error, TEXT("Failed to create PuzzlePiecesComponent for %s"), *StaticMeshComponent->GetName());
-                                continue;
-                            }
-
-                            // Copie as propriedades
-                            NewPuzzlePartComponent->SetStaticMesh(Mesh);
-                            NewPuzzlePartComponent->SetRelativeLocation(Location);
-                            NewPuzzlePartComponent->SetRelativeRotation(Rotation);
-                            NewPuzzlePartComponent->SetRelativeScale3D(Scale);
-
-                            // Definir o perfil de colisão padrão
-                            NewPuzzlePartComponent->SetCollisionProfileName(TEXT("BlockAllDynamic"));
-
-                            if (IsShell)
-                            {
-                                // Ajustar canais específicos
-                                NewPuzzlePartComponent->SetCollisionResponseToChannel(ECC_GameTraceChannel1, ECollisionResponse::ECR_Ignore); // Supondo que Pieces é ECC_GameTraceChannel1
-                                NewPuzzlePartComponent->SetCollisionResponseToChannel(ECC_GameTraceChannel2, ECollisionResponse::ECR_Block); // Supondo que Shell é ECC_GameTraceChannel2
-                                ShellRelativePosition = StaticMeshComponent->GetRelativeLocation();
-                            }
-                            else
-                            {
-                                // Ajustar canais específicos
-                                NewPuzzlePartComponent->SetCollisionResponseToChannel(ECC_GameTraceChannel1, ECollisionResponse::ECR_Block); // Supondo que Pieces é ECC_GameTraceChannel1
-                                NewPuzzlePartComponent->SetCollisionResponseToChannel(ECC_GameTraceChannel2, ECollisionResponse::ECR_Ignore); // Supondo que Shell é ECC_GameTraceChannel2
-                            }
-
-                            NewPuzzlePartComponent->SetIsShell(IsShell);
 
                             // Encontre o nó pai original
                             USCS_Node* ParentNode = nullptr;
@@ -128,6 +160,7 @@ void UAAU_UpdateModelMeshes::AddPiecesComponentToMeshes()
 
                             // Marcar o nó original para remoção
                             NodesToRemove.Add(Node);
+                            
                         }
                         else
                         {
@@ -157,6 +190,9 @@ void UAAU_UpdateModelMeshes::AddPiecesComponentToMeshes()
             }
         }
     }
+
+
+
 
     // Atualize os editores
     GEditor->RedrawAllViewports();

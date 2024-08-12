@@ -9,6 +9,7 @@
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnModelLoaded);
 
+class UInnerMesh;
 
 UCLASS()
 class PUZZLE3D_API APuzzleModel : public AActor
@@ -55,6 +56,13 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Debug")
 	bool CanLockPieces;
 
+
+	UFUNCTION(BlueprintCallable, Category = "Mesh Groups")
+	TArray<UInnerMesh*> GetInnerMeshComponents() const;
+
+	UPROPERTY(EditAnywhere, Category = "Raycast")
+	float MaxRaycastLength = 250;
+
 private:
 	UFUNCTION(BlueprintCallable)
 	void Explode();
@@ -65,5 +73,10 @@ private:
 
 	UPROPERTY(EditAnywhere, Category = "Move Info")
 	float OffsetDistance = 20.0;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mesh Groups", meta = (AllowPrivateAccess = "true"))
+	TArray<UInnerMesh*> InnerMeshComponents;
+
+	FVector CalculateWeightedAverage(FVector piecePosition);
 
 };

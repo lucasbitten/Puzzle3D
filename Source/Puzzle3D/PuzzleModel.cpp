@@ -4,6 +4,7 @@
 #include "PuzzleModel.h"
 #include "Engine/StaticMeshActor.h"
 #include <Kismet/KismetMathLibrary.h>
+#include "InnerMesh.h"
 
 // Sets default values
 APuzzleModel::APuzzleModel()
@@ -17,6 +18,7 @@ APuzzleModel::APuzzleModel()
 void APuzzleModel::BeginPlay()
 {
 	Super::BeginPlay();
+	GetComponents(InnerMeshComponents);
 	GetComponents(PuzzlePiecesComponents);
 	TotalPieces = PuzzlePiecesComponents.Num() - 1; //Excluding the shell
 	OnModelLoaded.Broadcast();
@@ -32,6 +34,11 @@ void APuzzleModel::Tick(float DeltaTime)
 	{
 		DrawDebugWiredSphere();
 	}
+}
+
+TArray<UInnerMesh*> APuzzleModel::GetInnerMeshComponents() const
+{
+	return InnerMeshComponents;
 }
 
 void APuzzleModel::Explode()
@@ -82,6 +89,39 @@ void APuzzleModel::Explode()
 				FRotator InitialRotator;
 
 				NewPieceParent->SetWorldLocation(PuzzlePiece->GetComponentLocation());
+
+				//// Parâmetros do LineTrace
+				//FVector StartLocation = NewPieceParent->GetComponentLocation();
+				//FVector EndLocation = NewPieceParent->GetComponentLocation() + NewPieceParent->GetForwardVector() * 0.1f;
+
+				//FHitResult HitResult;
+				//FCollisionQueryParams CollisionParams;
+				//CollisionParams.bTraceComplex = true;
+				//float SphereRadius = 10.0f;
+
+				//// Realiza o Line Trace
+				//bool bHit = GetWorld()->SweepSingleByChannel(
+				//	HitResult,
+				//	StartLocation,
+				//	EndLocation,
+				//	FQuat::Identity,
+				//	ECC_GameTraceChannel2, // Canal de da shell
+				//	FCollisionShape::MakeSphere(SphereRadius),
+				//	CollisionParams
+				//);
+
+				//FVector pointToLook;
+
+				//// Se algo foi atingido
+				//if (bHit)
+				//{
+				//	pointToLook = HitResult.ImpactPoint;
+				//}
+
+
+				//auto pointToLook = CalculateWeightedAverage(PuzzlePiece->GetComponentLocation());
+				//InitialRotator = UKismetMathLibrary::FindLookAtRotation(NewPieceParent->GetComponentLocation(), pointToLook);
+
 				InitialRotator = UKismetMathLibrary::FindLookAtRotation(NewPieceParent->GetComponentLocation(), Shell->GetComponentLocation());
 
 				NewPieceParent->SetWorldRotation(InitialRotator);
@@ -166,5 +206,97 @@ void APuzzleModel::DrawDebugWiredSphere() const
 	// Draw the debug sphere
 	DrawDebugSphere(GetWorld(), Center, ExplosionRadius, Segments, FColor::Green, bPersistentLines, LifeTime, DepthPriority);
 	DrawDebugSphere(GetWorld(), Center, InnerRadius, Segments, FColor::Blue, bPersistentLines, LifeTime, DepthPriority);
+}
+
+FVector APuzzleModel::CalculateWeightedAverage(FVector piecePosition)
+{
+	// Variáveis para armazenar as somas
+	float TotalWeight = 0.0f;
+	float SumX = 0.0f;
+	float SumY = 0.0f;
+	float SumZ = 0.0f;
+
+	// Variáveis para armazenar as coordenadas mínimas e máximas
+	FVector MinCoords(FLT_MAX, FLT_MAX, FLT_MAX);
+	FVector MaxCoords(FLT_MIN, FLT_MIN, FLT_MIN);
+
+	for (UInnerMesh* InnerMesh : InnerMeshComponents)
+	{
+		// Parâmetros do LineTrace
+		FVector StartLocation = piecePosition;
+		FVector EndLocation = InnerMesh->GetComponentLocation();
+
+		if (FVector::Distance(StartLocation, EndLocation) > MaxRaycastLength)
+		{
+			continue;
+		}
+
+		FHitResult HitResult;
+		FCollisionQueryParams CollisionParams;
+		CollisionParams.bTraceComplex = true;
+
+		// Realiza o Line Trace
+		bool bHit = GetWorld()->LineTraceSingleByChannel(
+			HitResult,
+			StartLocation,
+			EndLocation,
+			ECC_GameTraceChannel2, // Canal da shell
+			CollisionParams
+		);
+
+		// Se algo foi atingido
+		if (bHit)
+		{
+			FVector ImpactPoint = HitResult.ImpactPoint; // Ponto de impacto
+			float DistancePower = 10.0f;
+
+			// Calcular a distância
+			float Distance = FMath::Max(HitResult.Distance, 1.0f);
+
+			// Aplicar uma potência à distância
+			float WeightedDistance = FMath::Pow(Distance, DistancePower);
+
+			// Calcular o peso
+			float Weight = 1.0f / FMath::Max(WeightedDistance, 0.0001f); // Evitar divisão por zero
+
+			// Atualizar as somas ponderadas
+			TotalWeight += Weight;
+			SumX += Weight * ImpactPoint.X;
+			SumY += Weight * ImpactPoint.Y;
+			SumZ += Weight * ImpactPoint.Z;
+
+			// Atualizar os valores mínimos e máximos das coordenadas
+			MinCoords.X = FMath::Min(MinCoords.X, ImpactPoint.X);
+			MinCoords.Y = FMath::Min(MinCoords.Y, ImpactPoint.Y);
+			MinCoords.Z = FMath::Min(MinCoords.Z, ImpactPoint.Z);
+
+			MaxCoords.X = FMath::Max(MaxCoords.X, ImpactPoint.X);
+			MaxCoords.Y = FMath::Max(MaxCoords.Y, ImpactPoint.Y);
+			MaxCoords.Z = FMath::Max(MaxCoords.Z, ImpactPoint.Z);
+
+			// Opcional: Desenhar a linha de rastreamento para visualização no editor
+			DrawDebugLine(GetWorld(), StartLocation, EndLocation, FColor::Green, false, 1, 0, 1);
+		}
+	}
+
+	// Dividir as somas pelo peso total para obter o ponto médio ponderado
+	FVector WeightedAverage;
+	if (TotalWeight > 0.0f)
+	{
+		WeightedAverage.X = SumX / TotalWeight;
+		WeightedAverage.Y = SumY / TotalWeight;
+		WeightedAverage.Z = SumZ / TotalWeight;
+	}
+	else
+	{
+		WeightedAverage = FVector::ZeroVector; // Default no caso de não haver peso acumulado
+	}
+
+	// Aplicar o Clamp para garantir que o ponto esteja dentro do intervalo
+	WeightedAverage.X = FMath::Clamp(WeightedAverage.X, MinCoords.X, MaxCoords.X);
+	WeightedAverage.Y = FMath::Clamp(WeightedAverage.Y, MinCoords.Y, MaxCoords.Y);
+	WeightedAverage.Z = FMath::Clamp(WeightedAverage.Z, MinCoords.Z, MaxCoords.Z);
+
+	return WeightedAverage;
 }
 
