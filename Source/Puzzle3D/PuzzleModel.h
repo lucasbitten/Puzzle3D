@@ -11,6 +11,14 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnModelLoaded);
 
 class UInnerMesh;
 
+UENUM(BlueprintType)
+enum class NormalCalculationType : uint8
+{
+	CalculateWeightedAverage UMETA(DisplayName = "CalculateWeightedAverage"),
+	GetClosestInnerMeshPoint UMETA(DisplayName = "GetClosestInnerMeshPoint"),
+	GetPointToLookAtFromSphereCast UMETA(DisplayName = "GetPointToLookAtFromSphereCast")
+};
+
 UCLASS()
 class PUZZLE3D_API APuzzleModel : public AActor
 {
@@ -23,6 +31,8 @@ class PUZZLE3D_API APuzzleModel : public AActor
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
+
+
 
 public:	
 	// Called every frame
@@ -56,12 +66,23 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Debug")
 	bool CanLockPieces;
 
+	UPROPERTY(EditAnywhere, Category = "Debug")
+	float SphereCollisionRadius = 5.0f;
+
+	UPROPERTY(EditAnywhere, Category = "Debug")
+	bool GetPreviousDirectionAverage;
+
 
 	UFUNCTION(BlueprintCallable, Category = "Mesh Groups")
 	TArray<UInnerMesh*> GetInnerMeshComponents() const;
 
 	UPROPERTY(EditAnywhere, Category = "Raycast")
 	float MaxRaycastLength = 250;
+
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Debug")
+	NormalCalculationType NormalCalculationType;
+
 
 private:
 	UFUNCTION(BlueprintCallable)
@@ -78,5 +99,7 @@ private:
 	TArray<UInnerMesh*> InnerMeshComponents;
 
 	FVector CalculateWeightedAverage(FVector piecePosition);
+	FVector GetClosestInnerMeshPoint(FVector piecePosition);
+	FVector GetPointToLookAtFromSphereCast(USceneComponent* NewPieceParent, UPuzzlePiecesComponent* Shell, const FVector& ActorPos);
 
 };

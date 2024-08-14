@@ -46,6 +46,10 @@ void APuzzleModel::Explode()
 	auto ActorPos = GetActorLocation();
 	int skippedPieces = 0;
 
+	// Utiliza TQueue para manter as últimas 50 rotações
+	TArray<FQuat> PreviousPieceQuaternions;
+	const int MaxPreviousRotations = 50;
+
 	UPuzzlePiecesComponent* Shell = nullptr;
 	for (UPuzzlePiecesComponent* PuzzlePiece : PuzzlePiecesComponents)
 	{
@@ -90,41 +94,59 @@ void APuzzleModel::Explode()
 
 				NewPieceParent->SetWorldLocation(PuzzlePiece->GetComponentLocation());
 
-				//// Parâmetros do LineTrace
-				//FVector StartLocation = NewPieceParent->GetComponentLocation();
-				//FVector EndLocation = NewPieceParent->GetComponentLocation() + NewPieceParent->GetForwardVector() * 0.1f;
+				FVector pointToLook;
 
-				//FHitResult HitResult;
-				//FCollisionQueryParams CollisionParams;
-				//CollisionParams.bTraceComplex = true;
-				//float SphereRadius = 10.0f;
+				switch (NormalCalculationType)
+				{
+				case NormalCalculationType::CalculateWeightedAverage:
+					pointToLook = CalculateWeightedAverage(PuzzlePiece->GetComponentLocation());
+					break;
+				case NormalCalculationType::GetClosestInnerMeshPoint:
+					pointToLook = GetClosestInnerMeshPoint(PuzzlePiece->GetComponentLocation());
+					break;
+				case NormalCalculationType::GetPointToLookAtFromSphereCast:
+					pointToLook = GetPointToLookAtFromSphereCast(NewPieceParent, Shell, ActorPos);
+					break;
+				default:
+					break;
+				}
 
-				//// Realiza o Line Trace
-				//bool bHit = GetWorld()->SweepSingleByChannel(
-				//	HitResult,
-				//	StartLocation,
-				//	EndLocation,
-				//	FQuat::Identity,
-				//	ECC_GameTraceChannel2, // Canal de da shell
-				//	FCollisionShape::MakeSphere(SphereRadius),
-				//	CollisionParams
-				//);
+				if (GetPreviousDirectionAverage)
+				{
+					// Calcule a média das últimas 50 rotações
+					FQuat AverageQuaternion = FQuat::Identity;
+					if (PreviousPieceQuaternions.Num() > 0)
+					{
+						// Adiciona a rotação atual à lista
+						PreviousPieceQuaternions.Add(PuzzlePiece->GetComponentRotation().Quaternion());
 
-				//FVector pointToLook;
+						// Remove a rotação mais antiga se exceder o limite
+						if (PreviousPieceQuaternions.Num() > MaxPreviousRotations)
+						{
+							PreviousPieceQuaternions.RemoveAt(0);
+						}
 
-				//// Se algo foi atingido
-				//if (bHit)
-				//{
-				//	pointToLook = HitResult.ImpactPoint;
-				//}
+						// Calcula a média dos quaternions na lista
+						for (const FQuat& Quat : PreviousPieceQuaternions)
+						{
+							AverageQuaternion += Quat;
+						}
+						AverageQuaternion.Normalize(); // Normaliza o quaternion
+					}
 
+					// Ajuste a rotação da peça atual para não desviar muito da média das anteriores
+					FQuat TargetQuaternion = FQuat(UKismetMathLibrary::FindLookAtRotation(NewPieceParent->GetComponentLocation(), pointToLook));
+					FQuat SmoothedQuaternion = FQuat::Slerp(AverageQuaternion, TargetQuaternion, 0.75f); // Ajuste o fator de interpolação conforme necessário
+					InitialRotator = TargetQuaternion.Rotator();
+				}
+				else
+				{
+					InitialRotator = UKismetMathLibrary::FindLookAtRotation(NewPieceParent->GetComponentLocation(), pointToLook);
+				}
 
-				//auto pointToLook = CalculateWeightedAverage(PuzzlePiece->GetComponentLocation());
-				//InitialRotator = UKismetMathLibrary::FindLookAtRotation(NewPieceParent->GetComponentLocation(), pointToLook);
-
-				InitialRotator = UKismetMathLibrary::FindLookAtRotation(NewPieceParent->GetComponentLocation(), Shell->GetComponentLocation());
-
+				// Definir a rotação inicial no NewPieceParent
 				NewPieceParent->SetWorldRotation(InitialRotator);
+
 				PuzzlePiece->SetParentInitialWorldRotator(NewPieceParent->GetComponentRotation());
 
 				PuzzlePiece->SetOffsetDistance(OffsetDistance);
@@ -135,12 +157,64 @@ void APuzzleModel::Explode()
 
 				PuzzlePiece->SetWorldRotation(PieceEndRotator);
 
+				PuzzlePiece->SetRelativeLocation(FVector::Zero());
+
+				FVector Start2 = NewPieceParent->GetComponentLocation();
+				FVector ForwardVector2 = NewPieceParent->GetForwardVector();
+				float TraceDistance2 = 25.0f; // Distância do trace, ajuste conforme necessário
+				FVector End2 = Start2 + (-ForwardVector2 * TraceDistance2);
+
+				FHitResult HitResult2;
+				FCollisionQueryParams CollisionParams2;
+				CollisionParams2.bTraceComplex = true;
+
+				// Realiza o Line Trace
+				bool bHit = GetWorld()->SweepSingleByChannel(
+					HitResult2,
+					End2,
+					Start2,
+					FQuat::Identity,
+					ECC_GameTraceChannel2, // Canal da shell
+					FCollisionShape::MakeSphere(SphereCollisionRadius),
+					CollisionParams2
+				);
+
+				if (bHit)
+				{
+					DrawDebugDirectionalArrow(GetWorld(), HitResult2.ImpactPoint, HitResult2.ImpactPoint + HitResult2.ImpactNormal * 25, 5, FColor::Blue, true, 1.0f, 0, 1.0f);
+
+					// Agora, inverter a direção da rotação para fazer NewPieceParent olhar na direção oposta
+					FVector OppositeDirection = -HitResult2.ImpactNormal;
+					FRotator OppositeRotator = UKismetMathLibrary::FindLookAtRotation(HitResult2.ImpactPoint, HitResult2.ImpactPoint + OppositeDirection);
+					NewPieceParent->SetWorldRotation(OppositeRotator);
+
+					PuzzlePiece->SetParentInitialWorldRotator(NewPieceParent->GetComponentRotation());
+
+					PuzzlePiece->SetOffsetDistance(OffsetDistance);
+					PuzzlePiece->SetParentInitialWorldPositionWithOffset(NewPieceParent->GetComponentLocation() + (NewPieceParent->GetForwardVector() * -OffsetDistance));
+
+					FRotator CurrentRotator2 = PuzzlePiece->GetComponentRotation();
+					FRotator PieceEndRotator2= UKismetMathLibrary::ComposeRotators(CurrentRotator2, UKismetMathLibrary::NegateRotator(InitialRotator));
+
+					PuzzlePiece->SetWorldRotation(PieceEndRotator2);
+
+					PuzzlePiece->SetRelativeLocation(FVector::Zero());
+
+				}
+
 				if (skippedPieces < InitialPieces)
 				{
 					PuzzlePiece->SetWorldRotation(PieceEndRotator);
 					PuzzlePiece->SetRelativeLocation(FVector::Zero());
 					skippedPieces++;
 					PuzzlePiece->SetIsLocked(true);
+
+					FVector Start = NewPieceParent->GetComponentLocation();
+					FVector ForwardVector = NewPieceParent->GetForwardVector();
+
+					float TraceDistance = 25.0f; // Distância do trace, ajuste conforme necessário
+					FVector End = Start + (-ForwardVector * TraceDistance);
+
 					continue;
 				}
 
@@ -155,11 +229,48 @@ void APuzzleModel::Explode()
 				NewPieceParent->SetWorldLocation(NewPosition);
 				PuzzlePiece->SetRelativeLocation(FVector::Zero());
 				PuzzlePiece->SetWorldRotation(PieceEndRotator);
-
-
 			}
 		}
 	}
+}
+
+FVector APuzzleModel::GetPointToLookAtFromSphereCast(USceneComponent* NewPieceParent, UPuzzlePiecesComponent* Shell,  const FVector& ActorPos)
+{
+	FVector pointToLook;
+
+	// Parâmetros do LineTrace
+	FVector StartLocation = NewPieceParent->GetComponentLocation();
+	FVector EndLocation = (Shell->GetComponentLocation() - NewPieceParent->GetComponentLocation()) * 0.1f;
+
+	FHitResult HitResult;
+	FCollisionQueryParams CollisionParams;
+	CollisionParams.bTraceComplex = true;
+
+	// Realiza o Line Trace
+	bool bHit = GetWorld()->SweepSingleByChannel(
+		HitResult,
+		StartLocation,
+		EndLocation,
+		FQuat::Identity,
+		ECC_GameTraceChannel2, // Canal de da shell
+		FCollisionShape::MakeSphere(SphereCollisionRadius),
+		CollisionParams
+	);
+
+
+	// Se algo foi atingido
+	if (bHit)
+	{
+		pointToLook = HitResult.ImpactPoint;
+	}
+	else
+	{
+		// Se não houve hit, utilize a localização da shell ou algum outro critério
+		pointToLook = Shell ? Shell->GetComponentLocation() : ActorPos;
+	}
+
+	return pointToLook;
+
 }
 
 const int APuzzleModel::GetTotalPieces() const
@@ -298,5 +409,43 @@ FVector APuzzleModel::CalculateWeightedAverage(FVector piecePosition)
 	WeightedAverage.Z = FMath::Clamp(WeightedAverage.Z, MinCoords.Z, MaxCoords.Z);
 
 	return WeightedAverage;
+}
+
+FVector APuzzleModel::GetClosestInnerMeshPoint(FVector piecePosition)
+{
+	FVector PointToLookAt;
+	float MinDistance = FLT_MAX;
+
+	for (UInnerMesh* InnerMesh : InnerMeshComponents)
+	{
+		FVector StartLocation = piecePosition;
+		FVector EndLocation = InnerMesh->GetComponentLocation();
+
+		FHitResult HitResult;
+		FCollisionQueryParams CollisionParams;
+		CollisionParams.bTraceComplex = true;
+
+		// Realiza o Line Trace
+		bool bHit = GetWorld()->LineTraceSingleByChannel(
+			HitResult,
+			StartLocation,
+			EndLocation,
+			ECC_GameTraceChannel2, // Canal da shell
+			CollisionParams
+		);
+
+		// Se algo foi atingido
+		if (bHit)
+		{
+			if (FVector::Distance(StartLocation, HitResult.ImpactPoint) < MinDistance)
+			{
+				PointToLookAt = HitResult.ImpactPoint;
+				MinDistance = FVector::Distance(StartLocation, HitResult.ImpactPoint);
+			}
+		}
+	}
+
+	return PointToLookAt;
+
 }
 

@@ -55,7 +55,7 @@ void UAAU_UpdateModelMeshes::AddPiecesComponentToMeshes()
                         if (StaticMeshComponent->GetStaticMesh() && StaticMeshComponent->GetStaticMesh()->IsMeshDescriptionValid(0))
                         {
                             USCS_Node* NewNode = nullptr;
-                            if (StaticMeshComponent->GetName().Contains(TEXT("SphereAux")))
+                            if (StaticMeshComponent->GetName().Contains(TEXT("sphere_aux")))
                             {
                                 FVector Location = StaticMeshComponent->GetRelativeLocation();
                                 FRotator Rotation = StaticMeshComponent->GetRelativeRotation();
