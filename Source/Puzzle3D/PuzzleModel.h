@@ -39,6 +39,12 @@ public:
 	virtual void Tick(float DeltaTime) override;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Explosion")
+	float DegreeSpaceBetweenPieces;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Explosion")
+	float SpaceBetweenCircles;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Explosion")
 	float ExplosionRadius;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Explosion")
 	float InnerRadius;
@@ -58,7 +64,7 @@ public:
 	const void SetInitialPieces(int32 pieces);
 
 	UPROPERTY(BlueprintAssignable, Category = "Events")
-	FOnModelLoaded OnModelLoaded;
+	FOnModelLoaded OnModelInitialized;
 
 	UPROPERTY(EditAnywhere, Category = "Debug")
 	bool ShowDebug;
@@ -85,9 +91,13 @@ public:
 
 
 private:
+
+	UPuzzlePiecesComponent* Shell;
+
+	void SetupPieces();
+
 	UFUNCTION(BlueprintCallable)
 	void Explode();
-	void GetRandomPointInSphere(FVector& OutPosition, const FVector& Center);
 	TArray<UPuzzlePiecesComponent*> PuzzlePiecesComponents;
 
 	void DrawDebugWiredSphere() const;
@@ -98,8 +108,23 @@ private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mesh Groups", meta = (AllowPrivateAccess = "true"))
 	TArray<UInnerMesh*> InnerMeshComponents;
 
-	FVector CalculateWeightedAverage(FVector piecePosition);
 	FVector GetClosestInnerMeshPoint(FVector piecePosition);
-	FVector GetPointToLookAtFromSphereCast(USceneComponent* NewPieceParent, UPuzzlePiecesComponent* Shell, const FVector& ActorPos);
 
 };
+
+template <typename T>
+void ShuffleArray(TArray<T>& Array)
+{
+	if (Array.Num() > 0)
+	{
+		int32 LastIndex = Array.Num() - 1;
+		for (int32 i = 0; i <= LastIndex; ++i)
+		{
+			int32 Index = FMath::RandRange(i, LastIndex);
+			if (i != Index)
+			{
+				Array.Swap(i, Index);
+			}
+		}
+	}
+}

@@ -10,10 +10,14 @@
 			"LoadingPhase": "Default",
 			"AdditionalDependencies": [
 				"Engine",
-				"CoreUObject",
-				"Blutility"
+				"CoreUObject"			
 			]
-		}
+		},
+    		{
+      			"Name": "Puzzle3DEditor",
+      			"Type": "Editor",
+      			"LoadingPhase": "Default"
+    		}
 	],
 	"Plugins": [
 		{
@@ -41,7 +45,7 @@
 		},
 		{
 			"Name": "VictoryBPLibrary",
-			"Enabled": true
+			"Enabled": false
 		}
 	]
 }
