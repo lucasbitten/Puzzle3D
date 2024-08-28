@@ -4,6 +4,7 @@
 #include "PuzzleModel.h"
 #include "Engine/StaticMeshActor.h"
 #include <Kismet/KismetMathLibrary.h>
+#include "InnerMesh.h"
 
 // Sets default values
 APuzzleModel::APuzzleModel()
@@ -17,9 +18,11 @@ APuzzleModel::APuzzleModel()
 void APuzzleModel::BeginPlay()
 {
 	Super::BeginPlay();
+	GetComponents(InnerMeshComponents);
 	GetComponents(PuzzlePiecesComponents);
 	TotalPieces = PuzzlePiecesComponents.Num() - 1; //Excluding the shell
-	OnModelLoaded.Broadcast();
+	OnModelInitialized.Broadcast();
+	SetupPieces();
 	Explode();
 
 }
@@ -34,24 +37,29 @@ void APuzzleModel::Tick(float DeltaTime)
 	}
 }
 
-void APuzzleModel::Explode()
+TArray<UInnerMesh*> APuzzleModel::GetInnerMeshComponents() const
 {
-	auto ActorPos = GetActorLocation();
-	int skippedPieces = 0;
+	return InnerMeshComponents;
+}
 
-	UPuzzlePiecesComponent* Shell = nullptr;
-	for (UPuzzlePiecesComponent* PuzzlePiece : PuzzlePiecesComponents)
+void APuzzleModel::SetupPieces()
+{
+	if (Shell == nullptr)
 	{
-		if (PuzzlePiece != nullptr)
+		for (UPuzzlePiecesComponent* PuzzlePiece : PuzzlePiecesComponents)
 		{
-			if (PuzzlePiece->GetIsShell())
+			if (PuzzlePiece != nullptr)
 			{
-				Shell = PuzzlePiece;
-				break;
+				if (PuzzlePiece->GetIsShell())
+				{
+					Shell = PuzzlePiece;
+					break;
+				}
 			}
 		}
 	}
 
+	TArray<USceneComponent*> PiecesToExplode = TArray<USceneComponent*>();
 	for (UPuzzlePiecesComponent* PuzzlePiece : PuzzlePiecesComponents)
 	{
 		if (PuzzlePiece != nullptr)
@@ -62,64 +70,71 @@ void APuzzleModel::Explode()
 				continue;
 			}
 
-			// Crie um novo componente de cena vazio
-			FName NewComponentName = FName(*FString::Printf(TEXT("%s_Parent"), *PuzzlePiece->GetName()));
-			USceneComponent* NewPieceParent = NewObject<USceneComponent>(this, USceneComponent::StaticClass(), NewComponentName);
 
-			if (NewPieceParent)
-			{
-				// Anexe o novo componente de cena vazio ao root component do ator
-				NewPieceParent->SetupAttachment(RootComponent);
+			DrawDebugDirectionalArrow(GetWorld(), PuzzlePiece->GetComponentLocation(), PuzzlePiece->GetComponentLocation() + -PuzzlePiece->GetAttachParent()->GetForwardVector() * 25, 5, FColor::Blue, true, 1.0f, 0, 1.0f);
 
-				// Adicione e registre o novo componente
-				NewPieceParent->RegisterComponent();
-				AddInstanceComponent(NewPieceParent);
+			PuzzlePiece->SetParentInitialWorldPosition(PuzzlePiece->GetAttachParent()->GetComponentLocation());
+			PuzzlePiece->SetParentInitialWorldRotator(PuzzlePiece->GetAttachParent()->GetComponentRotation());
 
-				PuzzlePiece->SetParentInitialWorldPosition(PuzzlePiece->GetComponentLocation());
-
-				// Anexe o componente existente ao novo componente de cena vazio
-				PuzzlePiece->AttachToComponent(NewPieceParent, FAttachmentTransformRules::KeepWorldTransform);
-				FRotator InitialRotator;
-
-				NewPieceParent->SetWorldLocation(PuzzlePiece->GetComponentLocation());
-				InitialRotator = UKismetMathLibrary::FindLookAtRotation(NewPieceParent->GetComponentLocation(), Shell->GetComponentLocation());
-
-				NewPieceParent->SetWorldRotation(InitialRotator);
-				PuzzlePiece->SetParentInitialWorldRotator(NewPieceParent->GetComponentRotation());
-
-				PuzzlePiece->SetOffsetDistance(OffsetDistance);
-				PuzzlePiece->SetParentInitialWorldPositionWithOffset(NewPieceParent->GetComponentLocation() + (NewPieceParent->GetForwardVector() * -OffsetDistance));
-
-				FRotator CurrentRotator = PuzzlePiece->GetComponentRotation();
-				FRotator PieceEndRotator = UKismetMathLibrary::ComposeRotators(CurrentRotator, UKismetMathLibrary::NegateRotator(InitialRotator));
-
-				PuzzlePiece->SetWorldRotation(PieceEndRotator);
-
-				if (skippedPieces < InitialPieces)
-				{
-					PuzzlePiece->SetWorldRotation(PieceEndRotator);
-					PuzzlePiece->SetRelativeLocation(FVector::Zero());
-					skippedPieces++;
-					PuzzlePiece->SetIsLocked(true);
-					continue;
-				}
-
-				PuzzlePiece->SetCanLockPieces(CanLockPieces);
-				PuzzlePiece->SetIsLocked(false);
-
-				// Calcula uma nova posição aleatória dentro da esfera
-				FVector NewPosition;
-				GetRandomPointInSphere(NewPosition, ActorPos);
-
-				// Define a nova posição para o componente Static Mesh
-				NewPieceParent->SetWorldLocation(NewPosition);
-				PuzzlePiece->SetRelativeLocation(FVector::Zero());
-				PuzzlePiece->SetWorldRotation(PieceEndRotator);
-
-
-			}
+			PuzzlePiece->SetOffsetDistance(OffsetDistance);
+			PuzzlePiece->SetParentInitialWorldPositionWithOffset(PuzzlePiece->GetAttachParent()->GetComponentLocation() + (PuzzlePiece->GetAttachParent()->GetForwardVector() * -OffsetDistance));
 		}
 	}
+
+
+}
+
+void APuzzleModel::Explode()
+{
+	auto ActorPos = GetActorLocation();
+	int skippedPieces = 0;
+
+	TArray<USceneComponent*> PiecesToExplode = TArray<USceneComponent*>();
+	for (UPuzzlePiecesComponent* PuzzlePiece : PuzzlePiecesComponents)
+	{
+		if (PuzzlePiece != nullptr)
+		{
+
+			if (PuzzlePiece->GetIsShell())
+			{
+				continue;
+			}
+
+			if (skippedPieces < InitialPieces)
+			{
+				skippedPieces++;
+				PuzzlePiece->SetIsLocked(true);
+				PuzzlePiece->GetAttachParent()->SetWorldLocation(PuzzlePiece->GetParentInitialWorldPosition());
+				PuzzlePiece->GetAttachParent()->SetWorldRotation(PuzzlePiece->GetParentInitialWorldRotator());
+				continue;
+			}
+
+			PuzzlePiece->SetCanLockPieces(CanLockPieces);
+			PuzzlePiece->SetIsLocked(false);
+			PiecesToExplode.Add(PuzzlePiece->GetAttachParent());
+		}
+	}
+
+	float PiecesByCircle = 360 / DegreeSpaceBetweenPieces;
+	int CircleCount = UKismetMathLibrary::FCeil(PiecesToExplode.Num() / PiecesByCircle);
+	ShuffleArray(PiecesToExplode);
+	int currentCircle = 0;
+	float currentAngle = 0;
+	for (USceneComponent* PieceParent : PiecesToExplode)
+	{
+		float XPos = ExplosionRadius * UKismetMathLibrary::DegSin(currentAngle);
+		float YPos = ExplosionRadius * UKismetMathLibrary::DegCos(currentAngle);
+
+		PieceParent->SetWorldLocation(FVector(XPos, YPos, GetActorLocation().Z + SpaceBetweenCircles * currentCircle - 300));
+		currentAngle += DegreeSpaceBetweenPieces;
+
+		if (currentAngle > 360)
+		{
+			currentCircle++;
+			currentAngle = 0;
+		}
+	}
+
 }
 
 const int APuzzleModel::GetTotalPieces() const
@@ -138,23 +153,6 @@ const void APuzzleModel::SetInitialPieces(int32 pieces)
 }
 
 
-void APuzzleModel::GetRandomPointInSphere(FVector& OutPosition, const FVector& Center)
-{
-	// Calcula a diferença de raio entre a esfera externa e a esfera interna
-	float EffectiveRadius = ExplosionRadius - InnerRadius;
-
-	// Gera coordenadas aleatórias na esfera usando coordenadas esféricas
-	float Phi = FMath::FRandRange(0.0f, 2 * PI);
-	float Theta = FMath::FRandRange(0.0f, PI);
-	float Radius = FMath::FRandRange(0.0f, EffectiveRadius) + InnerRadius;
-
-	float X = Center.X + Radius * FMath::Sin(Theta) * FMath::Cos(Phi);
-	float Y = Center.Y + Radius * FMath::Sin(Theta) * FMath::Sin(Phi);
-	float Z = Center.Z + Radius * FMath::Cos(Theta);
-
-	OutPosition = FVector(X, Y, Z);
-}
-
 void APuzzleModel::DrawDebugWiredSphere() const
 {
 	FVector Center = GetActorLocation(); // Center of the sphere
@@ -166,5 +164,44 @@ void APuzzleModel::DrawDebugWiredSphere() const
 	// Draw the debug sphere
 	DrawDebugSphere(GetWorld(), Center, ExplosionRadius, Segments, FColor::Green, bPersistentLines, LifeTime, DepthPriority);
 	DrawDebugSphere(GetWorld(), Center, InnerRadius, Segments, FColor::Blue, bPersistentLines, LifeTime, DepthPriority);
+}
+
+
+FVector APuzzleModel::GetClosestInnerMeshPoint(FVector piecePosition)
+{
+	FVector PointToLookAt;
+	float MinDistance = FLT_MAX;
+
+	for (UInnerMesh* InnerMesh : InnerMeshComponents)
+	{
+		FVector StartLocation = piecePosition;
+		FVector EndLocation = InnerMesh->GetComponentLocation();
+
+		FHitResult HitResult;
+		FCollisionQueryParams CollisionParams;
+		CollisionParams.bTraceComplex = true;
+
+		// Realiza o Line Trace
+		bool bHit = GetWorld()->LineTraceSingleByChannel(
+			HitResult,
+			StartLocation,
+			EndLocation,
+			ECC_GameTraceChannel2, // Canal da shell
+			CollisionParams
+		);
+
+		// Se algo foi atingido
+		if (bHit)
+		{
+			if (FVector::Distance(StartLocation, HitResult.ImpactPoint) < MinDistance)
+			{
+				PointToLookAt = HitResult.ImpactPoint;
+				MinDistance = FVector::Distance(StartLocation, HitResult.ImpactPoint);
+			}
+		}
+	}
+
+	return PointToLookAt;
+
 }
 

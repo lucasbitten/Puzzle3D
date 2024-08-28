@@ -77,4 +77,7 @@ private:
 
 	float OffsetDistance;
 
+	UMaterialInstanceDynamic* DynamicMaterial;
+	UMaterialInterface* InitialMaterial;
+
 };
