@@ -31,10 +31,6 @@ void APuzzleModel::BeginPlay()
 void APuzzleModel::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-	if (ShowDebug)
-	{
-		DrawDebugWiredSphere();
-	}
 }
 
 TArray<UInnerMesh*> APuzzleModel::GetInnerMeshComponents() const
@@ -157,56 +153,4 @@ const void APuzzleModel::SetInitialPieces(int32 pieces)
 	InitialPieces = pieces;
 }
 
-
-void APuzzleModel::DrawDebugWiredSphere() const
-{
-	FVector Center = GetActorLocation(); // Center of the sphere
-	int32 Segments = 24;                 // Number of segments for the wireframe
-	bool bPersistentLines = false;       // Whether the lines should persist (set to true if you want them to persist)
-	float LifeTime = 0.01f;              // How long the lines should last (negative value means infinite)
-	uint8 DepthPriority = 0;             // Depth priority
-
-	// Draw the debug sphere
-	DrawDebugSphere(GetWorld(), Center, ExplosionRadius, Segments, FColor::Green, bPersistentLines, LifeTime, DepthPriority);
-	DrawDebugSphere(GetWorld(), Center, InnerRadius, Segments, FColor::Blue, bPersistentLines, LifeTime, DepthPriority);
-}
-
-
-FVector APuzzleModel::GetClosestInnerMeshPoint(FVector piecePosition)
-{
-	FVector PointToLookAt;
-	float MinDistance = FLT_MAX;
-
-	for (UInnerMesh* InnerMesh : InnerMeshComponents)
-	{
-		FVector StartLocation = piecePosition;
-		FVector EndLocation = InnerMesh->GetComponentLocation();
-
-		FHitResult HitResult;
-		FCollisionQueryParams CollisionParams;
-		CollisionParams.bTraceComplex = true;
-
-		// Realiza o Line Trace
-		bool bHit = GetWorld()->LineTraceSingleByChannel(
-			HitResult,
-			StartLocation,
-			EndLocation,
-			ECC_GameTraceChannel2, // Canal da shell
-			CollisionParams
-		);
-
-		// Se algo foi atingido
-		if (bHit)
-		{
-			if (FVector::Distance(StartLocation, HitResult.ImpactPoint) < MinDistance)
-			{
-				PointToLookAt = HitResult.ImpactPoint;
-				MinDistance = FVector::Distance(StartLocation, HitResult.ImpactPoint);
-			}
-		}
-	}
-
-	return PointToLookAt;
-
-}
 
