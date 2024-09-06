@@ -61,6 +61,9 @@ public:
 	const int GetInitialPieces() const;
 
 	UFUNCTION(BlueprintCallable)
+	const float GetOffsetDistance() const;
+
+	UFUNCTION(BlueprintCallable)
 	const void SetInitialPieces(int32 pieces);
 
 	UPROPERTY(BlueprintAssignable, Category = "Events")
@@ -102,7 +105,7 @@ private:
 
 	void DrawDebugWiredSphere() const;
 
-	UPROPERTY(EditAnywhere, Category = "Move Info")
+	UPROPERTY(EditAnywhere, Category = "Move Info", meta = (AllowPrivateAccess = "true"))
 	float OffsetDistance = 20.0;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mesh Groups", meta = (AllowPrivateAccess = "true"))

@@ -147,6 +147,11 @@ const int APuzzleModel::GetInitialPieces() const
 	return InitialPieces;
 }
 
+const float APuzzleModel::GetOffsetDistance() const
+{
+	return OffsetDistance;
+}
+
 const void APuzzleModel::SetInitialPieces(int32 pieces)
 {
 	InitialPieces = pieces;

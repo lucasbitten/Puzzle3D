@@ -237,13 +237,13 @@ void UAAU_UpdateModelMeshes::RemoveReorientedPlanes()
                         // Verifique a validade da malha original
                         if (StaticMeshComponent->GetStaticMesh() && StaticMeshComponent->GetStaticMesh()->IsMeshDescriptionValid(0))
                         {
-                            if (StaticMeshComponent->GetName().Contains(TEXT("sphere_aux")))
+                            if (StaticMeshComponent->GetName().Contains(TEXT("lookat_sphere")))
                             {
                                 FVector Location = StaticMeshComponent->GetRelativeLocation();
                                 FRotator Rotation = StaticMeshComponent->GetRelativeRotation();
                                 FVector Scale = StaticMeshComponent->GetRelativeScale3D();
 
-                                FString NewName = FString::Printf(TEXT("SphereAux_%d"), innerMeshCount++);
+                                FString NewName = FString::Printf(TEXT("lookat_sphere_%d"), innerMeshCount++);
                                 USCS_Node* NewNode = SCS->CreateNode(UInnerMesh::StaticClass(), *NewName);
 
                                 UInnerMesh* NewInnerMesh = Cast<UInnerMesh>(NewNode->ComponentTemplate);
@@ -263,7 +263,7 @@ void UAAU_UpdateModelMeshes::RemoveReorientedPlanes()
                             }
                             else
                             {
-                                bool IsShell = StaticMeshComponent->GetName().Contains(TEXT("Shell"));
+                                bool IsShell = StaticMeshComponent->GetName().Contains(TEXT("shell"));
                                 if (IsShell)
                                 {
                                     // Salve as propriedades da child
@@ -299,7 +299,7 @@ void UAAU_UpdateModelMeshes::RemoveReorientedPlanes()
                                         NodesToRemove.Add(Node);
                                     }
                                 }
-                                else if (StaticMeshComponent->GetName().Contains(TEXT("Reorient_New")))
+                                else if (StaticMeshComponent->GetName().Contains(TEXT("parent_plane")))
                                 {
                                     // Salve as propriedades de transformação
                                     FVector Location = StaticMeshComponent->GetRelativeLocation();
