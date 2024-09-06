@@ -138,6 +138,10 @@ void APuzzleModel::Explode()
 			currentCircle++;
 			currentAngle = 0;
 		}
+
+		FRotator Rotator = UKismetMathLibrary::FindLookAtRotation(PieceParent->GetComponentLocation(), Shell->GetComponentLocation());
+		PieceParent->SetWorldRotation(Rotator);
+		
 	}
 
 }
