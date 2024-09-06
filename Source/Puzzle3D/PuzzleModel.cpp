@@ -49,6 +49,14 @@ void APuzzleModel::SetupPieces()
 				if (PuzzlePiece->GetIsShell())
 				{
 					Shell = PuzzlePiece;
+
+					FBoxSphereBounds Bounds = Shell->CalcBounds(Shell->GetComponentTransform());
+					float BaseOffset = Bounds.BoxExtent.Z;
+
+					FVector NewLocation = GetActorLocation() + FVector(0.0f, 0.0f, BaseOffset);
+
+					SetActorLocation(NewLocation);
+
 					break;
 				}
 			}
@@ -66,8 +74,11 @@ void APuzzleModel::SetupPieces()
 				continue;
 			}
 
+			if (ShowDebug)
+			{
+				DrawDebugDirectionalArrow(GetWorld(), PuzzlePiece->GetComponentLocation(), PuzzlePiece->GetComponentLocation() + -PuzzlePiece->GetAttachParent()->GetForwardVector() * 5, 0.1, FColor::Blue, true, 1.0f, 0, 0.2f);
+			}
 
-			DrawDebugDirectionalArrow(GetWorld(), PuzzlePiece->GetComponentLocation(), PuzzlePiece->GetComponentLocation() + -PuzzlePiece->GetAttachParent()->GetForwardVector() * 25, 5, FColor::Blue, true, 1.0f, 0, 1.0f);
 
 			PuzzlePiece->SetParentInitialWorldPosition(PuzzlePiece->GetAttachParent()->GetComponentLocation());
 			PuzzlePiece->SetParentInitialWorldRotator(PuzzlePiece->GetAttachParent()->GetComponentRotation());
@@ -76,8 +87,6 @@ void APuzzleModel::SetupPieces()
 			PuzzlePiece->SetParentInitialWorldPositionWithOffset(PuzzlePiece->GetAttachParent()->GetComponentLocation() + (PuzzlePiece->GetAttachParent()->GetForwardVector() * -OffsetDistance));
 		}
 	}
-
-
 }
 
 void APuzzleModel::Explode()
@@ -121,7 +130,7 @@ void APuzzleModel::Explode()
 		float XPos = ExplosionRadius * UKismetMathLibrary::DegSin(currentAngle);
 		float YPos = ExplosionRadius * UKismetMathLibrary::DegCos(currentAngle);
 
-		PieceParent->SetWorldLocation(FVector(XPos, YPos, GetActorLocation().Z + SpaceBetweenCircles * currentCircle - 300));
+		PieceParent->SetWorldLocation(FVector(XPos, YPos, GetActorLocation().Z + SpaceBetweenCircles * currentCircle - 30));
 		currentAngle += DegreeSpaceBetweenPieces;
 
 		if (currentAngle > 360)

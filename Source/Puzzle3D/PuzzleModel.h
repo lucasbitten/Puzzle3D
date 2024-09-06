@@ -8,6 +8,7 @@
 #include "PuzzleModel.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnModelLoaded);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnPiecePlacedCorrectly);
 
 class UInnerMesh;
 
@@ -38,7 +39,7 @@ public:
 	float SpaceBetweenCircles;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Explosion")
-	float ExplosionRadius;
+	float ExplosionRadius = 100;
 
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Model Settings")
@@ -63,6 +64,9 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Events")
 	FOnModelLoaded OnModelInitialized;
 
+	UPROPERTY(BlueprintAssignable, Category = "Events")
+	FOnPiecePlacedCorrectly OnPiecePlacedCorrectly;
+
 	UPROPERTY(EditAnywhere, Category = "Debug")
 	bool ShowDebug;
 
@@ -70,7 +74,7 @@ public:
 	bool CanLockPieces;
 
 	UPROPERTY(EditAnywhere, Category = "Piece Movement")
-	float MaxRaycastLength = 250;
+	float MaxRaycastLength = 25;
 
 private:
 
@@ -83,8 +87,8 @@ private:
 
 	TArray<UPuzzlePiecesComponent*> PuzzlePiecesComponents;
 
-	UPROPERTY(EditAnywhere, Category = "Piece Movement", meta = (AllowPrivateAccess = "true"))
-	float OffsetDistance = 20.0;
+	UPROPERTY(EditAnywhere, Category = "Piece Movement", meta = (AllowPrivateAccess = "true", ToolTip = "Distance from shell when moving the piece"))
+	float OffsetDistance = 2.0;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mesh Groups", meta = (AllowPrivateAccess = "true"))
 	TArray<UInnerMesh*> InnerMeshComponents;
