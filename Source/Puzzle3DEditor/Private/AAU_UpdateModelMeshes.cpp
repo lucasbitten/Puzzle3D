@@ -20,187 +20,13 @@
 #include "Editor/UnrealEd/Public/Editor.h"
 #include "./Puzzle3D/PuzzleModel.h"
 #include <Kismet/KismetMathLibrary.h>
+#include "Engine/StaticMeshActor.h"
+#include "Editor.h"
+#include "Editor/UnrealEd/Public/EditorActorFolders.h"
+#include "Editor/EditorEngine.h"
+#include "EngineUtils.h"
 
-
-void UAAU_UpdateModelMeshes::AddPiecesComponentToMeshes()
-{
-    // Obtenha os assets selecionados
-    TArray<FAssetData> SelectedAssets = UEditorUtilityLibrary::GetSelectedAssetData();
-
-    for (const FAssetData& AssetData : SelectedAssets)
-    {
-        if (UBlueprint* Blueprint = Cast<UBlueprint>(AssetData.GetAsset()))
-        {
-            // Obter a SimpleConstructionScript do blueprint
-            USimpleConstructionScript* SCS = Blueprint->SimpleConstructionScript;
-            if (SCS)
-            {
-                // Modifique o blueprint
-                Blueprint->Modify();
-
-
-
-                // Iterar pelos nós do SCS
-                TArray<USCS_Node*> Nodes = SCS->GetAllNodes();
-
-                int32 count = 0;
-                int32 innerMeshCount = 0;
-
-                FVector ShellRelativePosition = FVector::Zero();
-                TArray<USCS_Node*> NodesToRemove;
-                for (USCS_Node* Node : Nodes)
-                {
-                    UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Node->ComponentTemplate);
-                    if (StaticMeshComponent)
-                    {
-                        // Verifique a validade da malha original
-                        if (StaticMeshComponent->GetStaticMesh() && StaticMeshComponent->GetStaticMesh()->IsMeshDescriptionValid(0))
-                        {
-                            USCS_Node* NewNode = nullptr;
-                            if (StaticMeshComponent->GetName().Contains(TEXT("sphere_aux")))
-                            {
-                                FVector Location = StaticMeshComponent->GetRelativeLocation();
-                                FRotator Rotation = StaticMeshComponent->GetRelativeRotation();
-                                FVector Scale = StaticMeshComponent->GetRelativeScale3D();
-
-                                FString NewName = FString::Printf(TEXT("SphereAux_%d"), innerMeshCount++);
-                                NewNode = SCS->CreateNode(UInnerMesh::StaticClass(), *NewName);
-
-                                UInnerMesh* NewInnerMesh = Cast<UInnerMesh>(NewNode->ComponentTemplate);
-
-                                if (!NewInnerMesh)
-                                {
-                                    UE_LOG(LogTemp, Error, TEXT("Failed to create NewInnerMesh for %s"), *StaticMeshComponent->GetName());
-                                    continue;
-                                }
-
-                                NewInnerMesh->SetRelativeLocation(Location);
-                                NewInnerMesh->SetRelativeRotation(Rotation);
-                                NewInnerMesh->SetRelativeScale3D(Scale);
-
-                            }
-                            else
-                            {
-                                bool IsShell = StaticMeshComponent->GetName().Contains(TEXT("Shell"));
-
-                                // Salve as propriedades que você deseja manter
-                                UStaticMesh* Mesh = StaticMeshComponent->GetStaticMesh();
-                                FVector Location = StaticMeshComponent->GetRelativeLocation();
-                                FRotator Rotation = StaticMeshComponent->GetRelativeRotation();
-                                FVector Scale = StaticMeshComponent->GetRelativeScale3D();
-
-                                FString NewName;
-                                if (IsShell)
-                                {
-                                    NewName = FString::Printf(TEXT("PuzzlePart_Shell"));
-                                }
-                                else
-                                {
-                                    NewName = FString::Printf(TEXT("PuzzlePart_%d"), count++);
-                                }
-
-                                // Crie um novo nó no SCS com o novo componente
-                                NewNode = SCS->CreateNode(UPuzzlePiecesComponent::StaticClass(), *NewName);
-                                UPuzzlePiecesComponent* NewPuzzlePartComponent = Cast<UPuzzlePiecesComponent>(NewNode->ComponentTemplate);
-
-                                if (!NewPuzzlePartComponent)
-                                {
-                                    UE_LOG(LogTemp, Error, TEXT("Failed to create PuzzlePiecesComponent for %s"), *StaticMeshComponent->GetName());
-                                    continue;
-                                }
-
-                                // Copie as propriedades
-                                NewPuzzlePartComponent->SetStaticMesh(Mesh);
-                                NewPuzzlePartComponent->SetRelativeLocation(Location);
-                                NewPuzzlePartComponent->SetRelativeRotation(Rotation);
-                                NewPuzzlePartComponent->SetRelativeScale3D(Scale);
-
-                                // Definir o perfil de colisão padrão
-                                NewPuzzlePartComponent->SetCollisionProfileName(TEXT("BlockAllDynamic"));
-
-                                if (IsShell)
-                                {
-                                    // Ajustar canais específicos
-                                    NewPuzzlePartComponent->SetCollisionResponseToChannel(ECC_GameTraceChannel1, ECollisionResponse::ECR_Ignore); // Supondo que Pieces é ECC_GameTraceChannel1
-                                    NewPuzzlePartComponent->SetCollisionResponseToChannel(ECC_GameTraceChannel2, ECollisionResponse::ECR_Block); // Supondo que Shell é ECC_GameTraceChannel2
-                                    ShellRelativePosition = StaticMeshComponent->GetRelativeLocation();
-                                }
-                                else
-                                {
-                                    // Ajustar canais específicos
-                                    NewPuzzlePartComponent->SetCollisionResponseToChannel(ECC_GameTraceChannel1, ECollisionResponse::ECR_Block); // Supondo que Pieces é ECC_GameTraceChannel1
-                                    NewPuzzlePartComponent->SetCollisionResponseToChannel(ECC_GameTraceChannel2, ECollisionResponse::ECR_Ignore); // Supondo que Shell é ECC_GameTraceChannel2
-                                }
-
-                                NewPuzzlePartComponent->SetIsShell(IsShell);
-                            }
-
-                            // Encontre o nó pai original
-                            USCS_Node* ParentNode = nullptr;
-                            if (Node->ParentComponentOrVariableName != NAME_None)
-                            {
-                                for (USCS_Node* PotentialParentNode : Nodes)
-                                {
-                                    if (PotentialParentNode->GetVariableName() == Node->ParentComponentOrVariableName)
-                                    {
-                                        ParentNode = PotentialParentNode;
-                                        break;
-                                    }
-                                }
-                            }
-
-                            // Anexar o novo nó ao pai do nó original
-                            if (ParentNode)
-                            {
-                                NewNode->SetParent(ParentNode);
-                                ParentNode->AddChildNode(NewNode);
-                            }
-                            else
-                            {
-                                SCS->AddNode(NewNode);
-                            }
-
-                            // Marcar o nó original para remoção
-                            NodesToRemove.Add(Node);
-                            
-                        }
-                        else
-                        {
-                            UE_LOG(LogTemp, Warning, TEXT("Original mesh description is invalid for component %s"), *StaticMeshComponent->GetName());
-                        }
-                    }
-                }
-
-                // Remover os nós antigos
-                for (USCS_Node* NodeToRemove : NodesToRemove)
-                {
-                    SCS->RemoveNode(NodeToRemove);
-                }
-
-                // Compilar o blueprint para aplicar as mudanças
-                FKismetEditorUtilities::CompileBlueprint(Blueprint);
-
-                // Marque o blueprint como modificado e salve as mudanças
-                FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
-                FString PackageName = AssetData.PackageName.ToString();
-                UPackage* Package = FindPackage(nullptr, *PackageName);
-                if (Package)
-                {
-                    Package->SetDirtyFlag(true);
-                    FAssetRegistryModule::AssetCreated(Package);
-                }
-            }
-        }
-    }
-
-
-
-
-    // Atualize os editores
-    GEditor->RedrawAllViewports();
-}
-
-void UAAU_UpdateModelMeshes::RemoveReorientedPlanes()
+void UAAU_UpdateModelMeshes::SetupModelComponents()
 {
     // Obtenha os assets selecionados
     TArray<FAssetData> SelectedAssets = UEditorUtilityLibrary::GetSelectedAssetData();
@@ -237,7 +63,7 @@ void UAAU_UpdateModelMeshes::RemoveReorientedPlanes()
                         // Verifique a validade da malha original
                         if (StaticMeshComponent->GetStaticMesh() && StaticMeshComponent->GetStaticMesh()->IsMeshDescriptionValid(0))
                         {
-                            if (StaticMeshComponent->GetName().Contains(TEXT("lookat_sphere")))
+                            if (StaticMeshComponent->GetName().Contains(TEXT("sphere_aux")))
                             {
                                 FVector Location = StaticMeshComponent->GetRelativeLocation();
                                 FRotator Rotation = StaticMeshComponent->GetRelativeRotation();
@@ -263,7 +89,7 @@ void UAAU_UpdateModelMeshes::RemoveReorientedPlanes()
                             }
                             else
                             {
-                                bool IsShell = StaticMeshComponent->GetName().Contains(TEXT("shell"));
+                                bool IsShell = StaticMeshComponent->GetName().Contains(TEXT("Shell"));
                                 if (IsShell)
                                 {
                                     // Salve as propriedades da child
@@ -291,6 +117,7 @@ void UAAU_UpdateModelMeshes::RemoveReorientedPlanes()
                                         NewPuzzlePartComponent->SetCollisionResponseToChannel(ECC_GameTraceChannel1, ECollisionResponse::ECR_Ignore); // Supondo que Pieces é ECC_GameTraceChannel1
                                         NewPuzzlePartComponent->SetCollisionResponseToChannel(ECC_GameTraceChannel2, ECollisionResponse::ECR_Block); // Supondo que Shell é ECC_GameTraceChannel2
                                         NewPuzzlePartComponent->SetIsShell(true);
+                                        NewPuzzlePartComponent->bHiddenInSceneCapture = true;
 
                                         // Adicionar o novo nó à lista temporária
                                         NewNodes.Add(NewShellNode);
@@ -299,7 +126,7 @@ void UAAU_UpdateModelMeshes::RemoveReorientedPlanes()
                                         NodesToRemove.Add(Node);
                                     }
                                 }
-                                else if (StaticMeshComponent->GetName().Contains(TEXT("parent_plane")))
+                                else if (StaticMeshComponent->GetName().Contains(TEXT("Reorient_New")))
                                 {
                                     // Salve as propriedades de transformação
                                     FVector Location = StaticMeshComponent->GetRelativeLocation();
@@ -361,6 +188,7 @@ void UAAU_UpdateModelMeshes::RemoveReorientedPlanes()
                                                     NewPuzzlePartComponent->SetCollisionResponseToChannel(ECC_GameTraceChannel1, ECollisionResponse::ECR_Block); // Supondo que Pieces é ECC_GameTraceChannel1
                                                     NewPuzzlePartComponent->SetCollisionResponseToChannel(ECC_GameTraceChannel2, ECollisionResponse::ECR_Ignore); // Supondo que Shell é ECC_GameTraceChannel2
                                                     NewPuzzlePartComponent->SetIsShell(false);
+                                                    NewPuzzlePartComponent->bHiddenInSceneCapture = true;
 
                                                     // Verificar antes de anexar o novo nó de componente de cena ao novo nó de PuzzlePart
                                                     if (ensure(NewSceneNode) && ensure(NewChildNode))
@@ -424,6 +252,45 @@ void UAAU_UpdateModelMeshes::RemoveReorientedPlanes()
 
     // Atualize os editores
     GEditor->RedrawAllViewports();
+}
+
+void UAAU_UpdateModelMeshes::SetAllStaticMeshesHiddenInSceneCapture()
+{
+    // Obtém o mundo atual do editor
+    UWorld* World = GEditor->GetEditorWorldContext().World();
+    if (!World) return;
+
+    // Itera sobre todos os atores StaticMesh na cena
+    for (FActorIterator ActorItr(World); ActorItr; ++ActorItr)
+    {
+        AActor* Actor = *ActorItr;
+        if (Actor)
+        {
+            // Obtém todos os componentes StaticMesh
+            TArray<UStaticMeshComponent*> StaticMeshComponents;
+            Actor->GetComponents<UStaticMeshComponent>(StaticMeshComponents);
+
+            // Itera por todos os componentes StaticMesh encontrados
+            for (UStaticMeshComponent* StaticMeshComponent : StaticMeshComponents)
+            {
+                if (StaticMeshComponent)
+                {
+                    // Define a propriedade HiddenInSceneCapture para true
+                    StaticMeshComponent->bHiddenInSceneCapture = true;
+
+                    // Marca o componente como modificado para garantir que o editor reconheça a mudança
+                    StaticMeshComponent->Modify();
+                    StaticMeshComponent->MarkRenderStateDirty(); // Marca o componente para ser atualizado
+                }
+            }
+
+            // Marca o ator como modificado após atualizar todos os componentes
+            Actor->Modify();
+        }
+    }
+
+    // Exibe uma mensagem no log para confirmar que a operação foi realizada
+    UE_LOG(LogTemp, Log, TEXT("Todos os StaticMeshActors foram configurados para Hidden in Scene Capture."));
 }
 
 #endif
