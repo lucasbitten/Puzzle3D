@@ -76,14 +76,22 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Piece Movement")
 	float MaxRaycastLength = 25;
 
+	UPROPERTY(BlueprintReadOnly)
+	UPuzzlePiecesComponent* Shell;
+
+	UPROPERTY(BlueprintReadOnly)
+	float ModelTopZ;	
+	
+	UPROPERTY(BlueprintReadOnly)
+	float ModelBottomZ;
+
 private:
 
-	void SetupPieces();
+	void SetupModel();
 
 	UFUNCTION(BlueprintCallable)
 	void Explode();
 
-	UPuzzlePiecesComponent* Shell;
 
 	TArray<UPuzzlePiecesComponent*> PuzzlePiecesComponents;
 

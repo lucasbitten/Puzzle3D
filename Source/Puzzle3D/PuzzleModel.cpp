@@ -21,8 +21,8 @@ void APuzzleModel::BeginPlay()
 	GetComponents(InnerMeshComponents);
 	GetComponents(PuzzlePiecesComponents);
 	TotalPieces = PuzzlePiecesComponents.Num() - 1; //Excluding the shell
+	SetupModel();
 	OnModelInitialized.Broadcast();
-	SetupPieces();
 	Explode();
 
 }
@@ -38,7 +38,7 @@ TArray<UInnerMesh*> APuzzleModel::GetInnerMeshComponents() const
 	return InnerMeshComponents;
 }
 
-void APuzzleModel::SetupPieces()
+void APuzzleModel::SetupModel()
 {
 	if (Shell == nullptr)
 	{
@@ -56,6 +56,9 @@ void APuzzleModel::SetupPieces()
 					FVector NewLocation = GetActorLocation() + FVector(0.0f, 0.0f, BaseOffset);
 
 					SetActorLocation(NewLocation);
+
+					ModelTopZ = NewLocation.Z + BaseOffset;
+					ModelBottomZ = NewLocation.Z - BaseOffset;
 
 					break;
 				}
@@ -105,6 +108,8 @@ void APuzzleModel::Explode()
 				continue;
 			}
 
+			PuzzlePiece->SetCanLockPieces(CanLockPieces);
+
 			if (skippedPieces < InitialPieces)
 			{
 				skippedPieces++;
@@ -114,7 +119,6 @@ void APuzzleModel::Explode()
 				continue;
 			}
 
-			PuzzlePiece->SetCanLockPieces(CanLockPieces);
 			PuzzlePiece->SetIsLocked(false);
 			PiecesToExplode.Add(PuzzlePiece->GetAttachParent());
 		}
