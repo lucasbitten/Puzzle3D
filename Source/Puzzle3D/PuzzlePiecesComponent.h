@@ -60,24 +60,16 @@ private:
 	UPROPERTY(VisibleAnywhere, Category = "Initial Info", meta = (AllowPrivateAccess = "true"))
 	FVector InitialParentWorldPositionWithOffset;
 
-
-	UPROPERTY(VisibleAnywhere, Category = "Initial Info", meta = (AllowPrivateAccess = "true"))
-	FVector ShellRelativePosition;
-
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Initial Info", meta = (AllowPrivateAccess = "true"))
 	bool IsLocked;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Initial Info", meta = (AllowPrivateAccess = "true"))
 	bool IsShell;
 
-
 	UPROPERTY(EditAnywhere, Category = "Debug")
 	bool CanLockPieces;
 
-
+	UPROPERTY(meta = (ToolTip = "Distance from shell when moving the piece"))
 	float OffsetDistance;
-
-	UMaterialInstanceDynamic* DynamicMaterial;
-	UMaterialInterface* InitialMaterial;
 
 };

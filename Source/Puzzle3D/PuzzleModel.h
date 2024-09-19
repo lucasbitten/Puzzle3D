@@ -8,16 +8,9 @@
 #include "PuzzleModel.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnModelLoaded);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnPiecePlacedCorrectly);
 
 class UInnerMesh;
-
-UENUM(BlueprintType)
-enum class NormalCalculationType : uint8
-{
-	CalculateWeightedAverage UMETA(DisplayName = "CalculateWeightedAverage"),
-	GetClosestInnerMeshPoint UMETA(DisplayName = "GetClosestInnerMeshPoint"),
-	GetPointToLookAtFromSphereCast UMETA(DisplayName = "GetPointToLookAtFromSphereCast")
-};
 
 UCLASS()
 class PUZZLE3D_API APuzzleModel : public AActor
@@ -32,11 +25,12 @@ protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
-
-
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
+
+	UFUNCTION(BlueprintCallable, Category = "Mesh Groups")
+	TArray<UInnerMesh*> GetInnerMeshComponents() const;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Explosion")
 	float DegreeSpaceBetweenPieces;
@@ -45,13 +39,13 @@ public:
 	float SpaceBetweenCircles;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Explosion")
-	float ExplosionRadius;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Explosion")
-	float InnerRadius;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Explosion")
+	float ExplosionRadius = 100;
+
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Model Settings")
 	int32 InitialPieces = 2;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Explosion")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Model Settings")
 	int TotalPieces;
 
 	UFUNCTION(BlueprintCallable)
@@ -61,13 +55,17 @@ public:
 	const int GetInitialPieces() const;
 
 	UFUNCTION(BlueprintCallable)
-	const float GetOffsetDistance() const;
+	const void SetInitialPieces(int32 pieces);
 
 	UFUNCTION(BlueprintCallable)
-	const void SetInitialPieces(int32 pieces);
+	const float GetOffsetDistance() const;
+
 
 	UPROPERTY(BlueprintAssignable, Category = "Events")
 	FOnModelLoaded OnModelInitialized;
+
+	UPROPERTY(BlueprintAssignable, Category = "Events")
+	FOnPiecePlacedCorrectly OnPiecePlacedCorrectly;
 
 	UPROPERTY(EditAnywhere, Category = "Debug")
 	bool ShowDebug;
@@ -75,43 +73,33 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Debug")
 	bool CanLockPieces;
 
-	UPROPERTY(EditAnywhere, Category = "Debug")
-	float SphereCollisionRadius = 5.0f;
+	UPROPERTY(EditAnywhere, Category = "Piece Movement")
+	float MaxRaycastLength = 25;
 
-	UPROPERTY(EditAnywhere, Category = "Debug")
-	bool GetPreviousDirectionAverage;
+	UPROPERTY(BlueprintReadOnly)
+	UPuzzlePiecesComponent* Shell;
 
-
-	UFUNCTION(BlueprintCallable, Category = "Mesh Groups")
-	TArray<UInnerMesh*> GetInnerMeshComponents() const;
-
-	UPROPERTY(EditAnywhere, Category = "Raycast")
-	float MaxRaycastLength = 250;
-
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Debug")
-	NormalCalculationType NormalCalculationType;
-
+	UPROPERTY(BlueprintReadOnly)
+	float ModelTopZ;	
+	
+	UPROPERTY(BlueprintReadOnly)
+	float ModelBottomZ;
 
 private:
 
-	UPuzzlePiecesComponent* Shell;
-
-	void SetupPieces();
+	void SetupModel();
 
 	UFUNCTION(BlueprintCallable)
 	void Explode();
+
+
 	TArray<UPuzzlePiecesComponent*> PuzzlePiecesComponents;
 
-	void DrawDebugWiredSphere() const;
-
-	UPROPERTY(EditAnywhere, Category = "Move Info", meta = (AllowPrivateAccess = "true"))
-	float OffsetDistance = 20.0;
+	UPROPERTY(EditAnywhere, Category = "Piece Movement", meta = (AllowPrivateAccess = "true", ToolTip = "Distance from shell when moving the piece"))
+	float OffsetDistance = 2.0;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mesh Groups", meta = (AllowPrivateAccess = "true"))
 	TArray<UInnerMesh*> InnerMeshComponents;
-
-	FVector GetClosestInnerMeshPoint(FVector piecePosition);
 
 };
 

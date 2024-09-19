@@ -14,9 +14,10 @@ class PUZZLE3DEDITOR_API UAAU_UpdateModelMeshes : public UAssetActionUtility
 {
 	GENERATED_BODY()
 public:
-	UFUNCTION(BlueprintCallable, CallInEditor, Category = "MyUtilities")
-	void AddPiecesComponentToMeshes();
 
-	UFUNCTION(BlueprintCallable, CallInEditor, Category = "MyUtilities")
-	void RemoveReorientedPlanes();  
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Model Setup")
+	void SetupModelComponents();  
+
+	UFUNCTION(CallInEditor, Category = "Scene Setup")
+	void SetAllStaticMeshesHiddenInSceneCapture();
 };

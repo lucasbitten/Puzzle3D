@@ -21,8 +21,8 @@ void APuzzleModel::BeginPlay()
 	GetComponents(InnerMeshComponents);
 	GetComponents(PuzzlePiecesComponents);
 	TotalPieces = PuzzlePiecesComponents.Num() - 1; //Excluding the shell
+	SetupModel();
 	OnModelInitialized.Broadcast();
-	SetupPieces();
 	Explode();
 
 }
@@ -31,10 +31,6 @@ void APuzzleModel::BeginPlay()
 void APuzzleModel::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-	if (ShowDebug)
-	{
-		DrawDebugWiredSphere();
-	}
 }
 
 TArray<UInnerMesh*> APuzzleModel::GetInnerMeshComponents() const
@@ -42,7 +38,7 @@ TArray<UInnerMesh*> APuzzleModel::GetInnerMeshComponents() const
 	return InnerMeshComponents;
 }
 
-void APuzzleModel::SetupPieces()
+void APuzzleModel::SetupModel()
 {
 	if (Shell == nullptr)
 	{
@@ -53,6 +49,17 @@ void APuzzleModel::SetupPieces()
 				if (PuzzlePiece->GetIsShell())
 				{
 					Shell = PuzzlePiece;
+
+					FBoxSphereBounds Bounds = Shell->CalcBounds(Shell->GetComponentTransform());
+					float BaseOffset = Bounds.BoxExtent.Z;
+
+					FVector NewLocation = GetActorLocation() + FVector(0.0f, 0.0f, BaseOffset);
+
+					SetActorLocation(NewLocation);
+
+					ModelTopZ = NewLocation.Z + BaseOffset;
+					ModelBottomZ = NewLocation.Z - BaseOffset;
+
 					break;
 				}
 			}
@@ -70,8 +77,11 @@ void APuzzleModel::SetupPieces()
 				continue;
 			}
 
+			if (ShowDebug)
+			{
+				DrawDebugDirectionalArrow(GetWorld(), PuzzlePiece->GetComponentLocation(), PuzzlePiece->GetComponentLocation() + -PuzzlePiece->GetAttachParent()->GetForwardVector() * 5, 0.1, FColor::Blue, true, 1.0f, 0, 0.2f);
+			}
 
-			DrawDebugDirectionalArrow(GetWorld(), PuzzlePiece->GetComponentLocation(), PuzzlePiece->GetComponentLocation() + -PuzzlePiece->GetAttachParent()->GetForwardVector() * 25, 5, FColor::Blue, true, 1.0f, 0, 1.0f);
 
 			PuzzlePiece->SetParentInitialWorldPosition(PuzzlePiece->GetAttachParent()->GetComponentLocation());
 			PuzzlePiece->SetParentInitialWorldRotator(PuzzlePiece->GetAttachParent()->GetComponentRotation());
@@ -80,8 +90,6 @@ void APuzzleModel::SetupPieces()
 			PuzzlePiece->SetParentInitialWorldPositionWithOffset(PuzzlePiece->GetAttachParent()->GetComponentLocation() + (PuzzlePiece->GetAttachParent()->GetForwardVector() * -OffsetDistance));
 		}
 	}
-
-
 }
 
 void APuzzleModel::Explode()
@@ -100,6 +108,8 @@ void APuzzleModel::Explode()
 				continue;
 			}
 
+			PuzzlePiece->SetCanLockPieces(CanLockPieces);
+
 			if (skippedPieces < InitialPieces)
 			{
 				skippedPieces++;
@@ -109,7 +119,6 @@ void APuzzleModel::Explode()
 				continue;
 			}
 
-			PuzzlePiece->SetCanLockPieces(CanLockPieces);
 			PuzzlePiece->SetIsLocked(false);
 			PiecesToExplode.Add(PuzzlePiece->GetAttachParent());
 		}
@@ -125,7 +134,7 @@ void APuzzleModel::Explode()
 		float XPos = ExplosionRadius * UKismetMathLibrary::DegSin(currentAngle);
 		float YPos = ExplosionRadius * UKismetMathLibrary::DegCos(currentAngle);
 
-		PieceParent->SetWorldLocation(FVector(XPos, YPos, GetActorLocation().Z + SpaceBetweenCircles * currentCircle - 300));
+		PieceParent->SetWorldLocation(FVector(XPos, YPos, GetActorLocation().Z + SpaceBetweenCircles * currentCircle - 30));
 		currentAngle += DegreeSpaceBetweenPieces;
 
 		if (currentAngle > 360)
@@ -133,6 +142,10 @@ void APuzzleModel::Explode()
 			currentCircle++;
 			currentAngle = 0;
 		}
+
+		FRotator Rotator = UKismetMathLibrary::FindLookAtRotation(PieceParent->GetComponentLocation(), Shell->GetComponentLocation());
+		PieceParent->SetWorldRotation(Rotator);
+		
 	}
 
 }
@@ -157,56 +170,4 @@ const void APuzzleModel::SetInitialPieces(int32 pieces)
 	InitialPieces = pieces;
 }
 
-
-void APuzzleModel::DrawDebugWiredSphere() const
-{
-	FVector Center = GetActorLocation(); // Center of the sphere
-	int32 Segments = 24;                 // Number of segments for the wireframe
-	bool bPersistentLines = false;       // Whether the lines should persist (set to true if you want them to persist)
-	float LifeTime = 0.01f;              // How long the lines should last (negative value means infinite)
-	uint8 DepthPriority = 0;             // Depth priority
-
-	// Draw the debug sphere
-	DrawDebugSphere(GetWorld(), Center, ExplosionRadius, Segments, FColor::Green, bPersistentLines, LifeTime, DepthPriority);
-	DrawDebugSphere(GetWorld(), Center, InnerRadius, Segments, FColor::Blue, bPersistentLines, LifeTime, DepthPriority);
-}
-
-
-FVector APuzzleModel::GetClosestInnerMeshPoint(FVector piecePosition)
-{
-	FVector PointToLookAt;
-	float MinDistance = FLT_MAX;
-
-	for (UInnerMesh* InnerMesh : InnerMeshComponents)
-	{
-		FVector StartLocation = piecePosition;
-		FVector EndLocation = InnerMesh->GetComponentLocation();
-
-		FHitResult HitResult;
-		FCollisionQueryParams CollisionParams;
-		CollisionParams.bTraceComplex = true;
-
-		// Realiza o Line Trace
-		bool bHit = GetWorld()->LineTraceSingleByChannel(
-			HitResult,
-			StartLocation,
-			EndLocation,
-			ECC_GameTraceChannel2, // Canal da shell
-			CollisionParams
-		);
-
-		// Se algo foi atingido
-		if (bHit)
-		{
-			if (FVector::Distance(StartLocation, HitResult.ImpactPoint) < MinDistance)
-			{
-				PointToLookAt = HitResult.ImpactPoint;
-				MinDistance = FVector::Distance(StartLocation, HitResult.ImpactPoint);
-			}
-		}
-	}
-
-	return PointToLookAt;
-
-}
 
