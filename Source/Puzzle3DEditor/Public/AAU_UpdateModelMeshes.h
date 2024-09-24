@@ -16,7 +16,7 @@ class PUZZLE3DEDITOR_API UAAU_UpdateModelMeshes : public UAssetActionUtility
 	GENERATED_BODY()
 public:
 
-	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Generate Model Blueprint")
+	UFUNCTION(BlueprintCallable, CallInEditor)
 	void GenerateModelBlueprint();
 
 	void HarvestComponentsAndCreateBlueprint(ADatasmithSceneActor* SceneActor, UClass* ParentClass);
