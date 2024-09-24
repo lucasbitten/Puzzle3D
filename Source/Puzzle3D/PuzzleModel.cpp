@@ -1,6 +1,5 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-
 #include "PuzzleModel.h"
 #include "Engine/StaticMeshActor.h"
 #include <Kismet/KismetMathLibrary.h>
@@ -22,7 +21,18 @@ void APuzzleModel::BeginPlay()
 	GetComponents(PuzzlePiecesComponents);
 	TotalPieces = PuzzlePiecesComponents.Num() - 1; //Excluding the shell
 	SetupModel();
-	OnModelInitialized.Broadcast();
+
+	AGameModeBase* GameModeBase = GetWorld()->GetAuthGameMode();
+	if (GameModeBase)
+	{
+		PuzzleMode = Cast<AGM_PuzzleMode>(GameModeBase);
+
+		if (PuzzleMode)
+		{
+			PuzzleMode->OnModelLoaded.Broadcast();
+		}
+
+	}
 	Explode();
 
 }
@@ -38,6 +48,11 @@ TArray<UInnerMesh*> APuzzleModel::GetInnerMeshComponents() const
 	return InnerMeshComponents;
 }
 
+TArray<USceneComponent*> APuzzleModel::GetPiecesToSendToBoard() const
+{
+	return PiecesToSendToBoard;
+}
+
 void APuzzleModel::SetupModel()
 {
 	if (Shell == nullptr)
@@ -51,14 +66,9 @@ void APuzzleModel::SetupModel()
 					Shell = PuzzlePiece;
 
 					FBoxSphereBounds Bounds = Shell->CalcBounds(Shell->GetComponentTransform());
-					float BaseOffset = Bounds.BoxExtent.Z;
 
-					FVector NewLocation = GetActorLocation() + FVector(0.0f, 0.0f, BaseOffset);
-
-					SetActorLocation(NewLocation);
-
-					ModelTopZ = NewLocation.Z + BaseOffset;
-					ModelBottomZ = NewLocation.Z - BaseOffset;
+					ModelTopZ = Bounds.Origin.Z + Bounds.BoxExtent.Z;
+					ModelBottomZ = Bounds.Origin.Z - Bounds.BoxExtent.Z;
 
 					break;
 				}
@@ -66,7 +76,6 @@ void APuzzleModel::SetupModel()
 		}
 	}
 
-	TArray<USceneComponent*> PiecesToExplode = TArray<USceneComponent*>();
 	for (UPuzzlePiecesComponent* PuzzlePiece : PuzzlePiecesComponents)
 	{
 		if (PuzzlePiece != nullptr)
@@ -97,7 +106,8 @@ void APuzzleModel::Explode()
 	auto ActorPos = GetActorLocation();
 	int skippedPieces = 0;
 
-	TArray<USceneComponent*> PiecesToExplode = TArray<USceneComponent*>();
+	PiecesToSendToBoard.Empty();
+
 	for (UPuzzlePiecesComponent* PuzzlePiece : PuzzlePiecesComponents)
 	{
 		if (PuzzlePiece != nullptr)
@@ -114,22 +124,26 @@ void APuzzleModel::Explode()
 			{
 				skippedPieces++;
 				PuzzlePiece->SetIsLocked(true);
+				PuzzlePiece->GetAttachParent()->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepWorldTransform);
+				PuzzlePiece->SetIsOnBoard(false);
 				PuzzlePiece->GetAttachParent()->SetWorldLocation(PuzzlePiece->GetParentInitialWorldPosition());
 				PuzzlePiece->GetAttachParent()->SetWorldRotation(PuzzlePiece->GetParentInitialWorldRotator());
 				continue;
 			}
 
 			PuzzlePiece->SetIsLocked(false);
-			PiecesToExplode.Add(PuzzlePiece->GetAttachParent());
+			PuzzlePiece->SetIsOnBoard(true);
+			PiecesToSendToBoard.Add(PuzzlePiece->GetAttachParent());
+
 		}
 	}
 
 	float PiecesByCircle = 360 / DegreeSpaceBetweenPieces;
-	int CircleCount = UKismetMathLibrary::FCeil(PiecesToExplode.Num() / PiecesByCircle);
-	ShuffleArray(PiecesToExplode);
+	int CircleCount = UKismetMathLibrary::FCeil(PiecesToSendToBoard.Num() / PiecesByCircle);
+	ShuffleArray(PiecesToSendToBoard);
 	int currentCircle = 0;
 	float currentAngle = 0;
-	for (USceneComponent* PieceParent : PiecesToExplode)
+	for (USceneComponent* PieceParent : PiecesToSendToBoard)
 	{
 		float XPos = ExplosionRadius * UKismetMathLibrary::DegSin(currentAngle);
 		float YPos = ExplosionRadius * UKismetMathLibrary::DegCos(currentAngle);
@@ -148,6 +162,10 @@ void APuzzleModel::Explode()
 		
 	}
 
+	if (PuzzleMode)
+	{
+		PuzzleMode->OnModelExploded.Broadcast();
+	}
 }
 
 const int APuzzleModel::GetTotalPieces() const

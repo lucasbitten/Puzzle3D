@@ -79,6 +79,16 @@ const void UPuzzlePiecesComponent::SetIsShell(bool isShell)
     IsShell = isShell;
 }
 
+const bool UPuzzlePiecesComponent::GetIsOnBoard() const
+{
+    return IsOnBoard;
+}
+
+const void UPuzzlePiecesComponent::SetIsOnBoard(bool isOnBoard)
+{
+    IsOnBoard = isOnBoard;
+}
+
 void UPuzzlePiecesComponent::SetOffsetDistance(float offset)
 {
     OffsetDistance = offset;

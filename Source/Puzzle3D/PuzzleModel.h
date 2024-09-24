@@ -2,12 +2,12 @@
 
 #pragma once
 
+#include "GM_PuzzleMode.h"
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "PuzzlePiecesComponent.h"
 #include "PuzzleModel.generated.h"
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnModelLoaded);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnPiecePlacedCorrectly);
 
 class UInnerMesh;
@@ -32,21 +32,22 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Mesh Groups")
 	TArray<UInnerMesh*> GetInnerMeshComponents() const;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Explosion")
-	float DegreeSpaceBetweenPieces;
+	UFUNCTION(BlueprintCallable, Category = "Board")
+	TArray<USceneComponent*> GetPiecesToSendToBoard() const;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Explosion")
-	float SpaceBetweenCircles;
+	float DegreeSpaceBetweenPieces = 10;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Explosion")
+	float SpaceBetweenCircles = 20;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Explosion")
 	float ExplosionRadius = 100;
 
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Model Settings")
-	int32 InitialPieces = 2;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Explosion")
+	int32 InitialPieces = 50;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Model Settings")
-	int TotalPieces;
 
 	UFUNCTION(BlueprintCallable)
 	const int GetTotalPieces() const;
@@ -60,18 +61,15 @@ public:
 	UFUNCTION(BlueprintCallable)
 	const float GetOffsetDistance() const;
 
-
-	UPROPERTY(BlueprintAssignable, Category = "Events")
-	FOnModelLoaded OnModelInitialized;
-
 	UPROPERTY(BlueprintAssignable, Category = "Events")
 	FOnPiecePlacedCorrectly OnPiecePlacedCorrectly;
 
-	UPROPERTY(EditAnywhere, Category = "Debug")
+
+	UPROPERTY(EditAnywhere, Category = "Piece Movement")
 	bool ShowDebug;
 
-	UPROPERTY(EditAnywhere, Category = "Debug")
-	bool CanLockPieces;
+	UPROPERTY(EditAnywhere, Category = "Piece Movement")
+	bool CanLockPieces = true;
 
 	UPROPERTY(EditAnywhere, Category = "Piece Movement")
 	float MaxRaycastLength = 25;
@@ -92,14 +90,19 @@ private:
 	UFUNCTION(BlueprintCallable)
 	void Explode();
 
+	AGM_PuzzleMode* PuzzleMode;
 
 	TArray<UPuzzlePiecesComponent*> PuzzlePiecesComponents;
 
 	UPROPERTY(EditAnywhere, Category = "Piece Movement", meta = (AllowPrivateAccess = "true", ToolTip = "Distance from shell when moving the piece"))
 	float OffsetDistance = 2.0;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mesh Groups", meta = (AllowPrivateAccess = "true"))
 	TArray<UInnerMesh*> InnerMeshComponents;
+
+	TArray<USceneComponent*> PiecesToSendToBoard;
+
+	int TotalPieces;
+
 
 };
 

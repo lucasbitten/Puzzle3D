@@ -45,6 +45,12 @@ public:
 
 	const void SetIsShell(bool isShell);
 
+	UFUNCTION(BlueprintCallable)
+	const bool GetIsOnBoard() const;
+
+	UFUNCTION(BlueprintCallable)
+	const void SetIsOnBoard(bool isOnBoard);
+
 	void SetOffsetDistance(float offset);
 
 	UFUNCTION(BlueprintCallable)
@@ -72,4 +78,6 @@ private:
 	UPROPERTY(meta = (ToolTip = "Distance from shell when moving the piece"))
 	float OffsetDistance;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Board", meta = (AllowPrivateAccess = "true"))
+	bool IsOnBoard;
 };

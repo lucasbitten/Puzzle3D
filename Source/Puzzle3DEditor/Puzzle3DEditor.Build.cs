@@ -18,7 +18,11 @@ public class Puzzle3DEditor : ModuleRules
             "EditorStyle",
             "UnrealEd",
             "Blutility", // Para utilitários de script do editor
-            "EditorScriptingUtilities"
+            "EditorScriptingUtilities",
+            "DatasmithContent",
+            "DatasmithCore",
+            "DatasmithImporter",
+            "ExternalSource"
         });
 
         PublicDependencyModuleNames.AddRange(new string[]
