@@ -18,8 +18,8 @@ void APuzzleModel::BeginPlay()
 {
 	Super::BeginPlay();
 	GetComponents(InnerMeshComponents);
-	GetComponents(PuzzlePiecesComponents);
-	TotalPieces = PuzzlePiecesComponents.Num() - 1; //Excluding the shell
+	GetComponents(PuzzlePieceParentComponents);
+	TotalPieces = PuzzlePieceParentComponents.Num() - 1; //Excluding the shell
 	SetupModel();
 
 	AGameModeBase* GameModeBase = GetWorld()->GetAuthGameMode();
@@ -57,7 +57,7 @@ void APuzzleModel::SetupModel()
 {
 	if (Shell == nullptr)
 	{
-		for (UPuzzlePiecesComponent* PuzzlePiece : PuzzlePiecesComponents)
+		for (UPuzzlePieceParentComponent* PuzzlePiece : PuzzlePieceParentComponents)
 		{
 			if (PuzzlePiece != nullptr)
 			{
@@ -65,7 +65,7 @@ void APuzzleModel::SetupModel()
 				{
 					Shell = PuzzlePiece;
 
-					FBoxSphereBounds Bounds = Shell->CalcBounds(Shell->GetComponentTransform());
+					FBoxSphereBounds Bounds = Shell->GetPieceMesh()->CalcBounds(Shell->GetPieceMesh()->GetComponentTransform());
 
 					ModelTopZ = Bounds.Origin.Z + Bounds.BoxExtent.Z;
 					ModelBottomZ = Bounds.Origin.Z - Bounds.BoxExtent.Z;
@@ -76,7 +76,7 @@ void APuzzleModel::SetupModel()
 		}
 	}
 
-	for (UPuzzlePiecesComponent* PuzzlePiece : PuzzlePiecesComponents)
+	for (UPuzzlePieceParentComponent* PuzzlePiece : PuzzlePieceParentComponents)
 	{
 		if (PuzzlePiece != nullptr)
 		{
@@ -88,27 +88,34 @@ void APuzzleModel::SetupModel()
 
 			if (ShowDebug)
 			{
-				DrawDebugDirectionalArrow(GetWorld(), PuzzlePiece->GetComponentLocation(), PuzzlePiece->GetComponentLocation() + -PuzzlePiece->GetAttachParent()->GetForwardVector() * 5, 0.1, FColor::Blue, true, 1.0f, 0, 0.2f);
+				DrawDebugDirectionalArrow(GetWorld(), PuzzlePiece->GetComponentLocation(), PuzzlePiece->GetComponentLocation() + -PuzzlePiece->GetForwardVector() * 5, 0.1, FColor::Blue, true, 1.0f, 0, 0.2f);
 			}
 
 
-			PuzzlePiece->SetParentInitialWorldPosition(PuzzlePiece->GetAttachParent()->GetComponentLocation());
-			PuzzlePiece->SetParentInitialWorldRotator(PuzzlePiece->GetAttachParent()->GetComponentRotation());
+			PuzzlePiece->SetParentInitialWorldPosition(PuzzlePiece->GetComponentLocation());
+			PuzzlePiece->SetParentInitialWorldRotator(PuzzlePiece->GetComponentRotation());
 
 			PuzzlePiece->SetOffsetDistance(OffsetDistance);
-			PuzzlePiece->SetParentInitialWorldPositionWithOffset(PuzzlePiece->GetAttachParent()->GetComponentLocation() + (PuzzlePiece->GetAttachParent()->GetForwardVector() * -OffsetDistance));
+			PuzzlePiece->SetParentInitialWorldPositionWithOffset(PuzzlePiece->GetComponentLocation() + (PuzzlePiece->GetForwardVector() * -OffsetDistance));
 		}
 	}
 }
 
 void APuzzleModel::Explode()
 {
+	if (Shell == nullptr)
+	{
+		UE_LOG(LogTemp, Error, TEXT("Shell is null!"));
+		return;
+	}
+
+
 	auto ActorPos = GetActorLocation();
 	int skippedPieces = 0;
 
 	PiecesToSendToBoard.Empty();
 
-	for (UPuzzlePiecesComponent* PuzzlePiece : PuzzlePiecesComponents)
+	for (UPuzzlePieceParentComponent* PuzzlePiece : PuzzlePieceParentComponents)
 	{
 		if (PuzzlePiece != nullptr)
 		{
@@ -124,16 +131,16 @@ void APuzzleModel::Explode()
 			{
 				skippedPieces++;
 				PuzzlePiece->SetIsLocked(true);
-				PuzzlePiece->GetAttachParent()->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepWorldTransform);
+				PuzzlePiece->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepWorldTransform);
 				PuzzlePiece->SetIsOnBoard(false);
-				PuzzlePiece->GetAttachParent()->SetWorldLocation(PuzzlePiece->GetParentInitialWorldPosition());
-				PuzzlePiece->GetAttachParent()->SetWorldRotation(PuzzlePiece->GetParentInitialWorldRotator());
+				PuzzlePiece->SetWorldLocation(PuzzlePiece->GetParentInitialWorldPosition());
+				PuzzlePiece->SetWorldRotation(PuzzlePiece->GetParentInitialWorldRotator());
 				continue;
 			}
 
 			PuzzlePiece->SetIsLocked(false);
 			PuzzlePiece->SetIsOnBoard(true);
-			PiecesToSendToBoard.Add(PuzzlePiece->GetAttachParent());
+			PiecesToSendToBoard.Add(PuzzlePiece);
 
 		}
 	}

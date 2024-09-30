@@ -6,6 +6,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "PuzzlePiecesComponent.h"
+#include "PuzzlePieceParentComponent.h"
 #include "PuzzleModel.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnPiecePlacedCorrectly);
@@ -75,7 +76,7 @@ public:
 	float MaxRaycastLength = 25;
 
 	UPROPERTY(BlueprintReadOnly)
-	UPuzzlePiecesComponent* Shell;
+	UPuzzlePieceParentComponent* Shell;
 
 	UPROPERTY(BlueprintReadOnly)
 	float ModelTopZ;	
@@ -92,7 +93,7 @@ private:
 
 	AGM_PuzzleMode* PuzzleMode;
 
-	TArray<UPuzzlePiecesComponent*> PuzzlePiecesComponents;
+	TArray<UPuzzlePieceParentComponent*> PuzzlePieceParentComponents;
 
 	UPROPERTY(EditAnywhere, Category = "Piece Movement", meta = (AllowPrivateAccess = "true", ToolTip = "Distance from shell when moving the piece"))
 	float OffsetDistance = 2.0;

@@ -11,6 +11,7 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Misc/PackageName.h"
 #include "./Puzzle3D/PuzzlePiecesComponent.h"
+#include "./Puzzle3D/PuzzlePieceParentComponent.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Engine/SCS_Node.h"
 #include "Engine/SimpleConstructionScript.h"
@@ -201,7 +202,7 @@ void UAAU_UpdateModelMeshes::HarvestComponentsAndCreateBlueprint(ADatasmithScene
     NewBlueprint->Modify();
     
     //Adding rootNode
-    USCS_Node* RootNode = SCS->CreateNode(USceneComponent::StaticClass(), TEXT("RootComponent"));
+    USCS_Node* RootNode = SCS->CreateNode(USceneComponent::StaticClass(), TEXT("Root"));
     SCS->AddNode(RootNode);
 
 
@@ -260,37 +261,57 @@ void UAAU_UpdateModelMeshes::HarvestComponentsAndCreateBlueprint(ADatasmithScene
                     bool IsShell = label.Contains(TEXT("shell"));
                     if (IsShell)
                     {
-                        // Salve as propriedades da child
-                        UStaticMesh* Mesh = StaticMeshComponent->GetStaticMesh();
-                        FVector ChildLocation = StaticMeshComponent->GetRelativeLocation();
-                        FRotator ChildRotation = StaticMeshComponent->GetRelativeRotation();
-                        FVector ChildScale = StaticMeshComponent->GetRelativeScale3D();
+                        // Salve as propriedades da Shell
+                        UStaticMesh* Shell = StaticMeshComponent->GetStaticMesh();
+                        FVector ShellLocation = StaticMeshComponent->GetRelativeLocation();
+                        FRotator ShellRotation = StaticMeshComponent->GetRelativeRotation();
+                        FVector ShellScale = StaticMeshComponent->GetRelativeScale3D();
 
-                        // Criar um novo nó com UPuzzlePiecesComponent para a child
-                        FString NewChildName = FString::Printf(TEXT("PuzzlePart_Shell"));
-                        USCS_Node* NewShellNode = SCS->CreateNode(UPuzzlePiecesComponent::StaticClass(), *NewChildName);
-                        UPuzzlePiecesComponent* NewPuzzlePartComponent = Cast<UPuzzlePiecesComponent>(NewShellNode->ComponentTemplate);
+                        FString NewShellParentName = FString::Printf(TEXT("PuzzlePart_Shell_Parent"));
 
-                        if (NewPuzzlePartComponent)
+
+                        USCS_Node* NewShellParentNode = SCS->CreateNode(UPuzzlePieceParentComponent::StaticClass(), *NewShellParentName);
+                        UPuzzlePieceParentComponent* NewShellParentComponent = Cast<UPuzzlePieceParentComponent>(NewShellParentNode->ComponentTemplate);
+
+                        if (NewShellParentComponent)
                         {
-                            // Copie as propriedades
-                            NewPuzzlePartComponent->SetStaticMesh(Mesh);
-                            NewPuzzlePartComponent->SetRelativeLocation(ChildLocation);
-                            NewPuzzlePartComponent->SetRelativeRotation(ChildRotation);
-                            NewPuzzlePartComponent->SetRelativeScale3D(ChildScale);
+                            // Copie as propriedades de transformação
+                            NewShellParentComponent->SetRelativeLocation(ShellLocation);
+                            NewShellParentComponent->SetWorldRotation(ShellRotation);
+                            NewShellParentComponent->SetWorldScale3D(FVector::One());
+                            NewShellParentComponent->SetIsShell(true);
 
-                            // Definir o perfil de colisão padrão
-                            NewPuzzlePartComponent->SetCollisionProfileName(TEXT("BlockAllDynamic"));
 
-                            NewPuzzlePartComponent->SetCollisionResponseToChannel(ECC_GameTraceChannel1, ECollisionResponse::ECR_Ignore); // Supondo que Pieces é ECC_GameTraceChannel1
-                            NewPuzzlePartComponent->SetCollisionResponseToChannel(ECC_GameTraceChannel2, ECollisionResponse::ECR_Block); // Supondo que Shell é ECC_GameTraceChannel2
-                            NewPuzzlePartComponent->SetIsShell(true);
-                            NewPuzzlePartComponent->bHiddenInSceneCapture = true;
+                            // Criar um novo nó com UPuzzlePiecesComponent para a Shell
+                            FString NewChildName = FString::Printf(TEXT("PuzzlePart_Shell"));
+                            USCS_Node* NewShellNode = SCS->CreateNode(UPuzzlePiecesComponent::StaticClass(), *NewChildName);
+                            UPuzzlePiecesComponent* NewPuzzlePartComponent = Cast<UPuzzlePiecesComponent>(NewShellNode->ComponentTemplate);
 
-                            // Adicionar o novo nó à lista temporária
-                            NewNodes.Add(NewShellNode);
+                            if (NewPuzzlePartComponent)
+                            {
+                                // Copie as propriedades
+                                NewPuzzlePartComponent->SetStaticMesh(Shell);
 
+                                // Definir o perfil de colisão padrão
+                                NewPuzzlePartComponent->SetCollisionProfileName(TEXT("BlockAllDynamic"));
+
+                                NewPuzzlePartComponent->SetCollisionResponseToChannel(ECC_GameTraceChannel1, ECollisionResponse::ECR_Ignore); // Supondo que Pieces é ECC_GameTraceChannel1
+                                NewPuzzlePartComponent->SetCollisionResponseToChannel(ECC_GameTraceChannel2, ECollisionResponse::ECR_Block); // Supondo que Shell é ECC_GameTraceChannel2
+                                NewPuzzlePartComponent->bHiddenInSceneCapture = true;
+
+
+                                // Verificar antes de anexar o novo nó de componente de cena ao novo nó de PuzzlePart
+                                if (ensure(NewShellNode) && ensure(NewShellParentNode))
+                                {
+                                    NewShellParentNode->AddChildNode(NewShellNode);
+                                }
+
+                            }
+
+                            NewNodes.Add(NewShellParentNode);
                         }
+
+ 
                     }
                     else if(label.Contains(TEXT("parent_plane")))
                     {
@@ -307,8 +328,8 @@ void UAAU_UpdateModelMeshes::HarvestComponentsAndCreateBlueprint(ADatasmithScene
                         // Criar um novo nó de componente de cena
                         FString NewComponentName = FString::Printf(TEXT("PuzzlePart_%d_Parent"), count);
 
-                        USCS_Node* NewSceneNode = SCS->CreateNode(USceneComponent::StaticClass(), *NewComponentName);
-                        USceneComponent* NewSceneComponent = Cast<USceneComponent>(NewSceneNode->ComponentTemplate);
+                        USCS_Node* NewSceneNode = SCS->CreateNode(UPuzzlePieceParentComponent::StaticClass(), *NewComponentName);
+                        UPuzzlePieceParentComponent* NewSceneComponent = Cast<UPuzzlePieceParentComponent>(NewSceneNode->ComponentTemplate);
 
                         if (NewSceneComponent)
                         {
@@ -316,6 +337,7 @@ void UAAU_UpdateModelMeshes::HarvestComponentsAndCreateBlueprint(ADatasmithScene
                             NewSceneComponent->SetRelativeLocation(Location);
                             NewSceneComponent->SetWorldRotation(OppositeRotator);
                             NewSceneComponent->SetWorldScale3D(FVector::One());
+                            NewSceneComponent->SetIsShell(false);
 
                             // Realocar filhos para o novo nó de componente de cena
 
@@ -356,7 +378,6 @@ void UAAU_UpdateModelMeshes::HarvestComponentsAndCreateBlueprint(ADatasmithScene
                                         // Ajustar canais específicos
                                         NewPuzzlePartComponent->SetCollisionResponseToChannel(ECC_GameTraceChannel1, ECollisionResponse::ECR_Block); // Supondo que Pieces é ECC_GameTraceChannel1
                                         NewPuzzlePartComponent->SetCollisionResponseToChannel(ECC_GameTraceChannel2, ECollisionResponse::ECR_Ignore); // Supondo que Shell é ECC_GameTraceChannel2
-                                        NewPuzzlePartComponent->SetIsShell(false);
                                         NewPuzzlePartComponent->bHiddenInSceneCapture = true;
 
                                         // Verificar antes de anexar o novo nó de componente de cena ao novo nó de PuzzlePart
