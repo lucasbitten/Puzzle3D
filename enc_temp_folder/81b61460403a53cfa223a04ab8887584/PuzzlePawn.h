@@ -68,7 +68,7 @@ protected:
 	UPuzzlePieceParentComponent* LastGrabbedPieceComponent;
 
 	UPROPERTY(BlueprintReadWrite)
-	float CorrectPositionTolerance = 15;
+	float CorrectPositionTolerance = 100;
 
 	UPROPERTY(BlueprintReadWrite)
 	UMaterialInterface* OriginalMaterial;

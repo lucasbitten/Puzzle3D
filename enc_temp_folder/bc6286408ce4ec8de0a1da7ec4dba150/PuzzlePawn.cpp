@@ -89,7 +89,7 @@ void APuzzlePawn::OnPieceLerpCompletedCallback()
 
 void APuzzlePawn::OnPieceLerpCloseToCameraCompletedCallback()
 {
-	CanMovePiece = true;
+	SetGrabMode(true);
 
 	if (CurrentPieceComponent)
 	{
@@ -120,6 +120,7 @@ bool APuzzlePawn::CreateRayFromMouseLocation(FVector& RayStart, FVector& RayEnd)
 
 void APuzzlePawn::HandleOnWorldPress()
 {
+	//todo
 	if (GrabMode)
 	{
 		FVector RayStart, RayEnd;
@@ -154,6 +155,7 @@ void APuzzlePawn::HandleOnWorldPress()
 
 							CurrentPieceComponent->InitializeLerpCloseToCameraTimeline(PieceInWorldDistanceFromCamera);
 							CurrentPieceComponent->OnLerpCompletedCallback.AddDynamic(this, &APuzzlePawn::OnPieceLerpCloseToCameraCompletedCallback);
+							CanMovePiece = true;
 						}
 					}
 				}

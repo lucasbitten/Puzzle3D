@@ -163,15 +163,13 @@ private:
 	UFUNCTION()
 	void OnLerpToPositionWithOffsetTimelineFinished();
 
-	void InitializeLerpToCorrectPositionTimeline();
-
 
 
 	UFUNCTION()
-	void HandleLerpToCorrectPositionProgress(float Value);
+	void HandleLerpProgress(float Value);
 
 	UFUNCTION()
-	void OnLerpToCorrectPositionTimelineFinished();
+	void OnLerpToPositionTimelineFinished();
 
 
 
