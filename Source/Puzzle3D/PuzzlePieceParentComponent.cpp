@@ -1,8 +1,7 @@
-#include "PuzzlePieceParentComponent.h"
 // Fill out your copyright notice in the Description page of Project Settings.
 
-
 #include "PuzzlePieceParentComponent.h"
+#include "PuzzlePawn.h"
 
 // Sets default values for this component's properties
 UPuzzlePieceParentComponent::UPuzzlePieceParentComponent()
@@ -19,16 +18,30 @@ void UPuzzlePieceParentComponent::BeginPlay()
 	Super::BeginPlay();
     SetPieceMesh();
 	// ...
-	
+
 }
 
+
+void UPuzzlePieceParentComponent::SetLerpCurve(UCurveFloat* Curve)
+{
+    LerpCurve = Curve;
+}
 
 // Called every frame
 void UPuzzlePieceParentComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+    Delta = DeltaTime;
+    if (IsLerpingToCorrectPositionWithOffset)
+    {
+        LerpToPositionWithOffsetTimeline.TickTimeline(DeltaTime);
+    }
 
-	// ...
+    if (IsLerpingToCorrectPosition)
+    {
+        LerpToPositionTimeline.TickTimeline(DeltaTime);
+    }
+
 }
 
 void UPuzzlePieceParentComponent::SetParentInitialWorldPosition(FVector initialParentWorldPos)
@@ -122,19 +135,42 @@ float UPuzzlePieceParentComponent::GetOffsetDistance()
 
 void UPuzzlePieceParentComponent::StartLerpingToCorrectPositionWithOffset()
 {
+    IsLerpingToCorrectPositionWithOffset = true;
+
     LerpStartPosition =  GetComponentLocation();
     LerpEndPosition = GetParentInitialWorldPositionWithOffset();
 
     LerpStartRotation = GetComponentRotation();
     LerpEndRotation = GetParentInitialWorldRotator();
 
-    IsLerping = true;
+    UE_LOG(LogTemp, Warning, TEXT("LerpEnd Rotation: %s"), *LerpEndRotation.ToString());
+    UE_LOG(LogTemp, Warning, TEXT("PieceInitialRelativeRotation: %s"), *PieceInitialRelativeRotation.ToString());
+
+    
+    InitializeLerpToPositionWithOffsetTimeline();
 
 }
+
 
 UPuzzlePiecesComponent* UPuzzlePieceParentComponent::GetPieceMesh() const
 {
     return PuzzlePiecesComponent;    
+}
+
+void UPuzzlePieceParentComponent::SavePieceInitialRelativeRotation()
+{
+    if (PuzzlePiecesComponent)
+    {
+        PieceInitialRelativeRotation = PuzzlePiecesComponent->GetRelativeRotation();
+    }
+}
+
+void UPuzzlePieceParentComponent::RestorePieceInitialRelativeRotation()
+{
+    if (PuzzlePiecesComponent)
+    {
+        PuzzlePiecesComponent->SetRelativeRotation(PieceInitialRelativeRotation);
+    }
 }
 
 void UPuzzlePieceParentComponent::SetPieceMesh()
@@ -146,4 +182,117 @@ void UPuzzlePieceParentComponent::SetPieceMesh()
             PuzzlePiecesComponent = PuzzlePiece;
         }
     }
+}
+
+void UPuzzlePieceParentComponent::InitializeLerpToPositionWithOffsetTimeline()
+{
+    if (LerpCurve)
+    {
+        // Bind da função para ser chamada em cada atualização da Timeline
+        FOnTimelineFloat TimelineProgress;
+        TimelineProgress.BindUFunction(this, FName("HandleLerpWithOffsetProgress"));
+
+        // Bind para a função de finalização
+        FOnTimelineEvent TimelineFinished;
+        TimelineFinished.BindUFunction(this, FName("OnLerpToPositionWithOffsetTimelineFinished"));
+
+        // Adiciona as funções à Timeline
+        LerpToPositionWithOffsetTimeline.AddInterpFloat(LerpCurve, TimelineProgress);
+        LerpToPositionWithOffsetTimeline.SetTimelineFinishedFunc(TimelineFinished);
+
+        LerpToPositionWithOffsetTimeline.SetTimelineLengthMode(ETimelineLengthMode::TL_LastKeyFrame);
+
+
+        // Define a Timeline para loop (ou não)
+        LerpToPositionWithOffsetTimeline.SetLooping(false);  // Não é looping
+
+        LerpToPositionWithOffsetTimeline.PlayFromStart();
+    }
+}
+
+void UPuzzlePieceParentComponent::HandleLerpWithOffsetProgress(float Value)
+{
+    // Interpolando a posição
+    FVector NewPosition = FMath::Lerp(LerpStartPosition, LerpEndPosition, Value);
+    SetWorldLocation(NewPosition);
+
+    // Interpolando a rotação usando RInterpTo com base no valor
+    FRotator NewRotation = FMath::RInterpTo(GetComponentRotation(), LerpEndRotation, Delta, LerpRotationSpeed);
+    SetWorldRotation(NewRotation);
+
+    GetPieceMesh()->SetRelativeRotation(PieceInitialRelativeRotation);
+}
+
+void UPuzzlePieceParentComponent::HandleLerpProgress(float Value)
+{
+
+    // Interpolando a posição
+    FVector NewPosition = FMath::Lerp(LerpStartPosition, LerpEndPosition, Value);
+    SetWorldLocation(NewPosition);
+
+    //// Interpolando a rotação usando RInterpTo com base no valor
+    //FRotator NewRotation = FMath::RInterpTo(LerpStartRotation, LerpEndRotation, Delta, LerpRotationSpeed);
+    //SetWorldRotation(NewRotation);
+
+    //GetPieceMesh()->SetRelativeRotation(PieceInitialRelativeRotation);
+
+}
+
+void UPuzzlePieceParentComponent::OnLerpToPositionWithOffsetTimelineFinished()
+{
+    IsLerpingToCorrectPositionWithOffset = false;
+    IsLerpingToCorrectPosition = true;
+
+    // Lógica para quando a Timeline terminar
+    UE_LOG(LogTemp, Warning, TEXT("Primeiro Lerp concluído!"));
+
+    if (LerpCurve)
+    {
+        LerpStartPosition = GetParentInitialWorldPositionWithOffset();
+        LerpEndPosition = GetParentInitialWorldPosition();
+
+        LerpStartRotation = GetComponentRotation();
+        LerpEndRotation = GetParentInitialWorldRotator();
+
+
+        // Bind da função para ser chamada em cada atualização da Timeline
+        FOnTimelineFloat TimelineProgress;
+        TimelineProgress.BindUFunction(this, FName("HandleLerpProgress"));
+
+        // Bind para a função de finalização
+        FOnTimelineEvent TimelineFinished;
+        TimelineFinished.BindUFunction(this, FName("OnLerpToPositionTimelineFinished"));
+
+        // Adiciona as funções à Timeline
+        LerpToPositionTimeline.AddInterpFloat(LerpCurve, TimelineProgress);
+        LerpToPositionTimeline.SetTimelineFinishedFunc(TimelineFinished);
+
+        LerpToPositionTimeline.SetTimelineLengthMode(ETimelineLengthMode::TL_LastKeyFrame);
+
+
+        // Define a Timeline para loop (ou não)
+        LerpToPositionTimeline.SetLooping(false);  // Não é looping
+
+        LerpToPositionTimeline.PlayFromStart();
+    }
+
+}
+
+void UPuzzlePieceParentComponent::OnLerpToPositionTimelineFinished()
+{
+    // Lógica para quando a Timeline terminar
+    UE_LOG(LogTemp, Warning, TEXT("Lerp concluído!"));
+    IsLerpingToCorrectPosition = false;
+
+    SetWorldLocation(InitialParentWorldPosition);
+    SetWorldRotation(InitialParentWorldRotator);
+    GetPieceMesh()->SetRelativeRotation(PieceInitialRelativeRotation);
+
+
+    // todo?
+    // GetPieceMesh()->SetMaterial(1, OriginalMaterial);
+    // DeselectPieceComponent()
+    SetIsLocked(true);
+    OnLerpCompletedCallback.Broadcast();
+
 }

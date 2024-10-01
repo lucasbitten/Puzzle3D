@@ -2,10 +2,13 @@
 
 #pragma once
 
+#include "Components/TimelineComponent.h"
 #include "PuzzlePiecesComponent.h"
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "PuzzlePieceParentComponent.generated.h"
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnLerpCompleted);
 
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
@@ -21,7 +24,15 @@ protected:
 	// Called when the game starts
 	virtual void BeginPlay() override;
 
+	FRotator PieceInitialRelativeRotation;
+
+	UPROPERTY(EditAnywhere, Category = "Lerp")
+	UCurveFloat* LerpCurve;
+
 public:	
+
+	void SetLerpCurve(UCurveFloat* Curve);
+
 	// Called every frame
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
@@ -67,7 +78,16 @@ public:
 	UFUNCTION(BlueprintCallable)
 	UPuzzlePiecesComponent* GetPieceMesh() const;
 
+	UFUNCTION(BlueprintCallable)
+	void SavePieceInitialRelativeRotation();
+
+	UFUNCTION(BlueprintCallable)
+	void RestorePieceInitialRelativeRotation();
+
+
 private:
+
+	float Delta;
 		
 	UPROPERTY(VisibleAnywhere, Category = "Initial Info", meta = (AllowPrivateAccess = "true"))
 	FVector InitialParentWorldPosition;
@@ -98,19 +118,41 @@ private:
 
 	void SetPieceMesh();
 
+	void InitializeLerpToPositionWithOffsetTimeline();
+
 #pragma region Lerps
+
+public:
+	FOnLerpCompleted OnLerpCompletedCallback;
+private:
+
+	FTimeline LerpToPositionWithOffsetTimeline;
+	FTimeline LerpToPositionTimeline;
+
+
 
 	FVector LerpStartPosition;
 	FVector LerpEndPosition;
-	float LerpPositionAlpha = 0.0f;
 	float LerpPositionSpeed = 1.0f;
 
 	FRotator LerpStartRotation;
 	FRotator LerpEndRotation;
-	float LerpRotationAlpha = 0.0f;
-	float LerpRotationSpeed = 1.0f;
+	float LerpRotationSpeed = 20.0f;
 
-	bool IsLerping = false;
+	bool IsLerpingToCorrectPositionWithOffset = false;
+	bool IsLerpingToCorrectPosition = false;
+
+	UFUNCTION()
+	void HandleLerpWithOffsetProgress(float Value);
+
+	UFUNCTION()
+	void HandleLerpProgress(float Value);
+
+	UFUNCTION()
+	void OnLerpToPositionWithOffsetTimelineFinished();
+
+	UFUNCTION()
+	void OnLerpToPositionTimelineFinished();
 
 #pragma endregion
 

@@ -40,6 +40,17 @@ void UAAU_UpdateModelMeshes::GenerateModelBlueprint()
 {
     using namespace UE::DatasmithImporter;
 
+    FString CurvePath = TEXT("/Game/LerpCurve.LerpCurve");
+
+    UCurveFloat* AlphaCurve = LoadCurveFromPath(CurvePath);
+
+    if (!AlphaCurve)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Failed to load AlphaCurve from path: %s"), *CurvePath);
+        return;
+    }
+
+
     // Obtenha os assets selecionados
     TArray<UObject*> SelectedAssets = UEditorUtilityLibrary::GetSelectedAssets();
 
@@ -143,7 +154,7 @@ void UAAU_UpdateModelMeshes::GenerateModelBlueprint()
                     RootActor = nullptr;
                 }
             }
-            HarvestComponentsAndCreateBlueprint(RootActor, APuzzleModel::StaticClass());
+            HarvestComponentsAndCreateBlueprint(RootActor, APuzzleModel::StaticClass(), AlphaCurve);
 
             for (auto& Pair : RootActor->RelatedActors)
             {
@@ -169,7 +180,25 @@ void UAAU_UpdateModelMeshes::GenerateModelBlueprint()
 
 }
 
-void UAAU_UpdateModelMeshes::HarvestComponentsAndCreateBlueprint(ADatasmithSceneActor* SceneActor, UClass* ParentClass)
+UCurveFloat* UAAU_UpdateModelMeshes::LoadCurveFromPath(const FString& CurvePath)
+{
+    // Usando StaticLoadObject para carregar o asset
+    UCurveFloat* LoadedCurve = Cast<UCurveFloat>(StaticLoadObject(UCurveFloat::StaticClass(), nullptr, *CurvePath));
+
+    if (LoadedCurve)
+    {
+        UE_LOG(LogTemp, Log, TEXT("Curve loaded successfully: %s"), *LoadedCurve->GetName());
+    }
+    else
+    {
+        UE_LOG(LogTemp, Error, TEXT("Failed to load curve from path: %s"), *CurvePath);
+    }
+
+    return LoadedCurve;
+}
+
+
+void UAAU_UpdateModelMeshes::HarvestComponentsAndCreateBlueprint(ADatasmithSceneActor* SceneActor, UClass* ParentClass, UCurveFloat* AlphaCurve)
 {
     if (!SceneActor || !ParentClass)
     {
@@ -338,6 +367,7 @@ void UAAU_UpdateModelMeshes::HarvestComponentsAndCreateBlueprint(ADatasmithScene
                             NewSceneComponent->SetWorldRotation(OppositeRotator);
                             NewSceneComponent->SetWorldScale3D(FVector::One());
                             NewSceneComponent->SetIsShell(false);
+                            NewSceneComponent->SetLerpCurve(AlphaCurve);
 
                             // Realocar filhos para o novo nó de componente de cena
 

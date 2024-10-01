@@ -57,10 +57,12 @@ void APuzzlePawn::OnLeftMouseButtonReleased()
 	{
 		if (CalculateDistanceFromCurrentPosition() < CorrectPositionTolerance)
 		{
+			CurrentPieceComponent->StartLerpingToCorrectPositionWithOffset();
+			CurrentPieceComponent->OnLerpCompletedCallback.AddDynamic(this, &APuzzlePawn::OnPieceLerpCompletedCallback);
+
 			LastGrabbedPieceComponent = CurrentPieceComponent;
 			CurrentPieceComponent->SetIsLocked(true);
 			CurrentPieceComponent = nullptr;
-			InitialWorldLerpLocation2 = LastGrabbedPieceComponent->GetAttachParent()->GetComponentLocation();
 			SetGrabMode(false);
 
 		}
@@ -71,6 +73,20 @@ void APuzzlePawn::OnLeftMouseButtonReleased()
 		}
 	}
 }
+
+void APuzzlePawn::OnPieceLerpCompletedCallback()
+{
+	SetGrabMode(true);
+	if (LastGrabbedPieceComponent)
+	{
+		LastGrabbedPieceComponent->OnLerpCompletedCallback.RemoveDynamic(this, &APuzzlePawn::OnPieceLerpCompletedCallback);
+	}
+
+	LastGrabbedPieceComponent = nullptr;
+
+}
+
+
 
 bool APuzzlePawn::CreateRayFromMouseLocation(FVector& RayStart, FVector& RayEnd)
 {
@@ -131,6 +147,7 @@ void APuzzlePawn::OnTimelineFinished()
 }
 
 
+
 // Called every frame
 void APuzzlePawn::Tick(float DeltaTime)
 {
@@ -161,7 +178,7 @@ void APuzzlePawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponen
 
 	PlayerInputComponent->BindAxis("MoveCamera", this, &APuzzlePawn::SetCameraMovementDirection);
 	PlayerInputComponent->BindAction("LeftMousePressed", IE_Pressed, this, &APuzzlePawn::OnLeftMouseButtonPressed);
-	PlayerInputComponent->BindAction("LeftMouseReleased", IE_Released, this, &APuzzlePawn::OnLeftMouseButtonReleased);
+	PlayerInputComponent->BindAction("LeftMousePressed", IE_Released, this, &APuzzlePawn::OnLeftMouseButtonReleased);
 
 }
 

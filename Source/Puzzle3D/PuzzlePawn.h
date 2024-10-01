@@ -62,8 +62,13 @@ protected:
 	UPROPERTY(BlueprintReadOnly)
 	bool GrabMode;
 
+	UPROPERTY(BlueprintReadWrite)
+	UPuzzlePieceParentComponent* CurrentPieceComponent;
+	UPROPERTY(BlueprintReadWrite)
+	UPuzzlePieceParentComponent* LastGrabbedPieceComponent;
 
-
+	UPROPERTY(BlueprintReadWrite)
+	float CorrectPositionTolerance = 100;
 
 private:
 
@@ -77,18 +82,7 @@ private:
 
 	void DeselectPieceComponent();
 
-
-	UPuzzlePieceParentComponent* CurrentPieceComponent;
-	UPuzzlePieceParentComponent* LastGrabbedPieceComponent;
-
-	float CorrectPositionTolerance = 3;
-
 	UMaterialInstance* OriginalMaterial;
-
-	FVector InitialWorldLerpLocation2;
-
-	FTimeline PlacingPieceTimeline;
-	FTimeline PlacingPieceWithOffsetTimeline;
 
 
 	UPROPERTY(EditAnywhere, Category = "Timeline")
@@ -102,5 +96,9 @@ private:
 
 	UFUNCTION()
 	void OnTimelineFinished();
+
+	UFUNCTION()
+	void OnPieceLerpCompletedCallback();
+
 
 };
