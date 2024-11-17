@@ -1,7 +1,7 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-#include <Camera/CameraComponent.h>
 #include "PuzzlePawn.h"
+#include "Camera/CameraComponent.h"
 
 // Sets default values
 APuzzlePawn::APuzzlePawn()
@@ -31,59 +31,80 @@ void APuzzlePawn::BeginPlay()
 
 void APuzzlePawn::OnLeftMouseButtonPressed()
 {
+	if (CurrentPieceComponent)
+	{
+		return;
+	}
+
 	FVector RayStart, RayEnd;
+
 
 	if (CreateRayFromMouseLocation(RayStart, RayEnd))
 	{
-		FHitResult HitResult;
-		FCollisionQueryParams Params;
-		Params.bTraceComplex = true;
-
-		if (GetWorld()->LineTraceSingleByChannel(HitResult, RayStart, RayEnd, ECC_GameTraceChannel3, Params))
-		{
-			HandleOnBoardPress();
-		}
-		else
-		{
-			HandleOnWorldPress();
-		}
-
+		HandleOnWorldPress();	
 	}
 
 }
 
 void APuzzlePawn::OnLeftMouseButtonReleased()
 {
+	if (!CanMovePiece)
+	{
+		return;
+	}
+
 	if (GrabMode && CurrentPieceComponent)
 	{
 		if (CalculateDistanceFromCurrentPosition() < CorrectPositionTolerance)
 		{
 			CurrentPieceComponent->StartLerpingToCorrectPositionWithOffset();
-			CurrentPieceComponent->OnLerpCompletedCallback.AddDynamic(this, &APuzzlePawn::OnPieceLerpCompletedCallback);
+			CanMovePiece = false;
+			CurrentPieceComponent->OnLerpToCorrectPositionCompletedCallback.AddDynamic(this, &APuzzlePawn::OnLerpToCorrectPositionCompletedCallback);
 
-			LastGrabbedPieceComponent = CurrentPieceComponent;
 			CurrentPieceComponent->SetIsLocked(true);
-			CurrentPieceComponent = nullptr;
-			SetGrabMode(false);
 
 		}
 		else
 		{
 			DeselectPieceComponent();
+			CurrentPieceComponent->StopLerpCloseToCameraTimeline();
 			CurrentPieceComponent = nullptr;
+			CanMovePiece = true;
 		}
 	}
 }
 
-void APuzzlePawn::OnPieceLerpCompletedCallback()
+void APuzzlePawn::OnRightMouseButtonPressed()
 {
-	SetGrabMode(true);
-	if (LastGrabbedPieceComponent)
+	if (!CanMovePiece)
 	{
-		LastGrabbedPieceComponent->OnLerpCompletedCallback.RemoveDynamic(this, &APuzzlePawn::OnPieceLerpCompletedCallback);
+		return;
 	}
 
-	LastGrabbedPieceComponent = nullptr;
+	SetGrabMode(false);
+}
+
+void APuzzlePawn::OnRightMouseButtonReleased()
+{
+	if (!CanMovePiece)
+	{
+		return;
+	}
+
+	SetGrabMode(true);
+}
+
+
+void APuzzlePawn::OnLerpToCorrectPositionCompletedCallback()
+{
+	DeselectPieceComponent();
+	if (CurrentPieceComponent)
+	{
+		CurrentPieceComponent->OnLerpToCorrectPositionCompletedCallback.RemoveDynamic(this, &APuzzlePawn::OnLerpToCorrectPositionCompletedCallback);
+	}
+	CanMovePiece = true;
+	CurrentPieceComponent = nullptr;
+	SetGrabMode(true);
 
 }
 
@@ -93,7 +114,7 @@ void APuzzlePawn::OnPieceLerpCloseToCameraCompletedCallback()
 
 	if (CurrentPieceComponent)
 	{
-		CurrentPieceComponent->OnLerpCompletedCallback.RemoveDynamic(this, &APuzzlePawn::OnPieceLerpCloseToCameraCompletedCallback);
+		CurrentPieceComponent->OnLerpToCameraCompletedCallback.RemoveDynamic(this, &APuzzlePawn::OnPieceLerpCloseToCameraCompletedCallback);
 	}
 }
 
@@ -139,8 +160,10 @@ void APuzzlePawn::HandleOnWorldPress()
 				{
 					if (CurrentPieceComponent->GetIsLocked())
 					{
-						//todo:
+						//todo?
 						//Logic to remove piece
+						//RemovingFinalPosition = CurrentPieceComponent->GetRemovingFinalPosition();
+						//CurrentPieceComponent->SavePieceInitialRelativeRotation();
 					}
 					else
 					{
@@ -153,7 +176,8 @@ void APuzzlePawn::HandleOnWorldPress()
 						{
 
 							CurrentPieceComponent->InitializeLerpCloseToCameraTimeline(PieceInWorldDistanceFromCamera);
-							CurrentPieceComponent->OnLerpCompletedCallback.AddDynamic(this, &APuzzlePawn::OnPieceLerpCloseToCameraCompletedCallback);
+							CanMovePiece = false;
+							CurrentPieceComponent->OnLerpToCameraCompletedCallback.AddDynamic(this, &APuzzlePawn::OnPieceLerpCloseToCameraCompletedCallback);
 						}
 					}
 				}
@@ -213,7 +237,7 @@ float APuzzlePawn::CalculateDistanceFromCurrentPosition()
 {
 	if (CurrentPieceComponent)
 	{
-		return FVector::Distance(CurrentPieceComponent->GetAttachParent()->GetComponentLocation(), CurrentPieceComponent->GetParentInitialWorldPositionWithOffset());
+		return FVector::Distance(CurrentPieceComponent->GetComponentLocation(), CurrentPieceComponent->GetParentInitialWorldPositionWithOffset());
 	}
 
 	return 0;
@@ -226,11 +250,6 @@ void APuzzlePawn::DeselectPieceComponent()
 		CurrentPieceComponent->GetPieceMesh()->SetMaterial(1, OriginalMaterial);
 	}
 
-}
-
-void APuzzlePawn::HandleOnBoardPress()
-{
-	//todo
 }
 
 
@@ -266,7 +285,8 @@ void APuzzlePawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponen
 	PlayerInputComponent->BindAxis("MoveCamera", this, &APuzzlePawn::SetCameraMovementDirection);
 	PlayerInputComponent->BindAction("LeftMousePressed", IE_Pressed, this, &APuzzlePawn::OnLeftMouseButtonPressed);
 	PlayerInputComponent->BindAction("LeftMousePressed", IE_Released, this, &APuzzlePawn::OnLeftMouseButtonReleased);
-
+	PlayerInputComponent->BindAction("RightMousePressed", IE_Pressed, this, &APuzzlePawn::OnRightMouseButtonPressed);
+	PlayerInputComponent->BindAction("RightMousePressed", IE_Released, this, &APuzzlePawn::OnRightMouseButtonReleased);
 }
 
 void APuzzlePawn::SetCameraMovementDirection(float value)
@@ -283,10 +303,13 @@ void APuzzlePawn::SetGrabMode(bool grabMode)
 	{
 		PlayerController->bShowMouseCursor = GrabMode;
 	}
+	UE_LOG(LogTemp, Warning, TEXT("SetGrabMode: %s"), grabMode ? TEXT("true") : TEXT("false"));
+
 }
 
 bool APuzzlePawn::GetGrabMode()
 {
+
 	return GrabMode;
 }
 

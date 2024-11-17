@@ -10,6 +10,7 @@
 #include "GameFramework/Pawn.h"
 #include "PuzzlePawn.generated.h"
 
+
 UCLASS()
 class PUZZLE3D_API APuzzlePawn : public APawn
 {
@@ -64,8 +65,6 @@ protected:
 
 	UPROPERTY(BlueprintReadWrite)
 	UPuzzlePieceParentComponent* CurrentPieceComponent;
-	UPROPERTY(BlueprintReadWrite)
-	UPuzzlePieceParentComponent* LastGrabbedPieceComponent;
 
 	UPROPERTY(BlueprintReadWrite)
 	float CorrectPositionTolerance = 15;
@@ -80,15 +79,20 @@ protected:
 	float PieceInWorldDistanceFromCamera = 80;
 
 	UPROPERTY(BlueprintReadWrite)
-	bool CanMovePiece;
+	bool CanMovePiece = true;
 
+	UPROPERTY(BlueprintReadWrite)
+	FVector RemovingFinalPosition;
 
 private:
 
 	void OnLeftMouseButtonPressed();
 	void OnLeftMouseButtonReleased();
+
+	void OnRightMouseButtonPressed();
+	void OnRightMouseButtonReleased();
+
 	bool CreateRayFromMouseLocation(FVector& RayStart, FVector& RayEnd);
-	void HandleOnBoardPress();
 	void HandleOnWorldPress();
 
 	void HandlePieceTouched(FHitResult& HitResult);
@@ -104,7 +108,7 @@ private:
 	UCurveFloat* TimelineCurve;
 
 	UFUNCTION()
-	void OnPieceLerpCompletedCallback();
+	void OnLerpToCorrectPositionCompletedCallback();
 
 	UFUNCTION()
 	void OnPieceLerpCloseToCameraCompletedCallback();

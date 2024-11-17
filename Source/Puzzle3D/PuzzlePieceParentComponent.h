@@ -10,6 +10,7 @@
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnLerpCompleted);
 
+class APuzzleModel;
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class PUZZLE3D_API UPuzzlePieceParentComponent : public USceneComponent
@@ -87,6 +88,9 @@ public:
 
 private:
 
+	APuzzleModel* PuzzleModel;
+
+
 	float Delta;
 		
 	UPROPERTY(VisibleAnywhere, Category = "Initial Info", meta = (AllowPrivateAccess = "true"))
@@ -123,12 +127,19 @@ private:
 #pragma region Lerps
 
 public:
-	FOnLerpCompleted OnLerpCompletedCallback;
+	FOnLerpCompleted OnLerpToCorrectPositionWithOffsetCompletedCallback;
+	FOnLerpCompleted OnLerpToCorrectPositionCompletedCallback;
+	FOnLerpCompleted OnLerpToCameraCompletedCallback;
+
 
 	FVector CalculatePositionOutsideModel();
 	void InitializeLerpCloseToCameraTimeline(float PieceWorldDistanceFromCamera);
+	void StopLerpCloseToCameraTimeline();
+
+	FVector GetRemovingFinalPosition();
 
 private:
+
 
 	float PieceInWorldDistanceFromCamera;
 
@@ -144,7 +155,7 @@ private:
 
 	FRotator LerpStartRotation;
 	FRotator LerpEndRotation;
-	float LerpRotationSpeed = 20.0f;
+	float LerpRotationSpeed = 5.0f;
 
 	bool IsLerpingToCorrectPositionWithOffset = false;
 	bool IsLerpingToCorrectPosition = false;
@@ -172,7 +183,6 @@ private:
 
 	UFUNCTION()
 	void OnLerpToCorrectPositionTimelineFinished();
-
 
 
 #pragma endregion

@@ -17,7 +17,12 @@ void UPuzzlePieceParentComponent::BeginPlay()
 {
 	Super::BeginPlay();
     SetPieceMesh();
-	// ...
+	
+    PuzzleModel = Cast<APuzzleModel>(GetOwner());
+    if (!PuzzleModel)
+    {
+        UE_LOG(LogTemp, Error, TEXT("Puzzle model not found"));
+    }
 
 }
 
@@ -215,6 +220,16 @@ void UPuzzlePieceParentComponent::InitializeLerpCloseToCameraTimeline(float Piec
     }
 }
 
+void UPuzzlePieceParentComponent::StopLerpCloseToCameraTimeline()
+{
+    LerpToMoveCloseToCameraTimeline.Stop();
+}
+
+FVector UPuzzlePieceParentComponent::GetRemovingFinalPosition()
+{
+    return (GetOffsetDistance() * GetForwardVector() * - 1) + GetComponentLocation();
+}
+
 void UPuzzlePieceParentComponent::HandleLerpCloseToCameraProgress(float Value)
 {
     FVector NewPosition = FMath::Lerp(GetComponentLocation(), CalculatePositionOutsideModel(), Value);
@@ -224,7 +239,7 @@ void UPuzzlePieceParentComponent::HandleLerpCloseToCameraProgress(float Value)
 
 void UPuzzlePieceParentComponent::OnLerpCloseToCameraTimelineFinished()
 {
-    OnLerpCompletedCallback.Broadcast();
+    OnLerpToCameraCompletedCallback.Broadcast();
     IsLerpingCloseToCamera = false;
 }
 
@@ -293,11 +308,11 @@ void UPuzzlePieceParentComponent::InitializeLerpToCorrectPositionTimeline()
 
         // Bind da função para ser chamada em cada atualização da Timeline
         FOnTimelineFloat TimelineProgress;
-        TimelineProgress.BindUFunction(this, FName("HandleLerpProgress"));
+        TimelineProgress.BindUFunction(this, FName("HandleLerpToCorrectPositionProgress"));
 
         // Bind para a função de finalização
         FOnTimelineEvent TimelineFinished;
-        TimelineFinished.BindUFunction(this, FName("OnLerpToPositionTimelineFinished"));
+        TimelineFinished.BindUFunction(this, FName("OnLerpToCorrectPositionTimelineFinished"));
 
         // Adiciona as funções à Timeline
         LerpToPositionTimeline.AddInterpFloat(LerpCurve, TimelineProgress);
@@ -330,21 +345,18 @@ void UPuzzlePieceParentComponent::HandleLerpToCorrectPositionProgress(float Valu
 
 void UPuzzlePieceParentComponent::OnLerpToCorrectPositionTimelineFinished()
 {
-    // Lógica para quando a Timeline terminar
-    UE_LOG(LogTemp, Warning, TEXT("Lerp concluído!"));
     IsLerpingToCorrectPosition = false;
 
     SetWorldLocation(InitialParentWorldPosition);
     SetWorldRotation(InitialParentWorldRotator);
     GetPieceMesh()->SetRelativeRotation(PieceInitialRelativeRotation);
 
-
-    // todo?
-    // GetPieceMesh()->SetMaterial(1, OriginalMaterial);
-    // DeselectPieceComponent()
     SetIsLocked(true);
-    OnLerpCompletedCallback.Broadcast();
-
+    OnLerpToCorrectPositionCompletedCallback.Broadcast();
+    if (PuzzleModel)
+    {
+        PuzzleModel->OnPiecePlaced();
+    }
 }
 
 

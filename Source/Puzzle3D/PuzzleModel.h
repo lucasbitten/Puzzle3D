@@ -9,9 +9,12 @@
 #include "PuzzlePieceParentComponent.h"
 #include "PuzzleModel.generated.h"
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnPiecePlacedCorrectly);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnPiecePlaced);
+
 
 class UInnerMesh;
+
+
 
 UCLASS()
 class PUZZLE3D_API APuzzleModel : public AActor
@@ -54,6 +57,9 @@ public:
 	const int GetTotalPieces() const;
 
 	UFUNCTION(BlueprintCallable)
+	const int GetCorrectPiecesPlaced() const;
+
+	UFUNCTION(BlueprintCallable)
 	const int GetInitialPieces() const;
 
 	UFUNCTION(BlueprintCallable)
@@ -62,9 +68,7 @@ public:
 	UFUNCTION(BlueprintCallable)
 	const float GetOffsetDistance() const;
 
-	UPROPERTY(BlueprintAssignable, Category = "Events")
-	FOnPiecePlacedCorrectly OnPiecePlacedCorrectly;
-
+	void OnPiecePlaced();
 
 	UPROPERTY(EditAnywhere, Category = "Piece Movement")
 	bool ShowDebug;
@@ -83,6 +87,9 @@ public:
 	
 	UPROPERTY(BlueprintReadOnly)
 	float ModelBottomZ;
+
+	UPROPERTY(BlueprintAssignable, Category = "Events")
+	FOnPiecePlaced OnPiecePlacedEvent;
 
 private:
 
@@ -104,6 +111,7 @@ private:
 
 	int TotalPieces;
 
+	int CorrectPiecesPlaced;
 
 };
 

@@ -9,7 +9,7 @@
 APuzzleModel::APuzzleModel()
 {
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
-	PrimaryActorTick.bCanEverTick = true;
+	PrimaryActorTick.bCanEverTick = false;
 
 }
 
@@ -113,6 +113,8 @@ void APuzzleModel::Explode()
 	auto ActorPos = GetActorLocation();
 	int skippedPieces = 0;
 
+	CorrectPiecesPlaced = 0;
+
 	PiecesToSendToBoard.Empty();
 
 	for (UPuzzlePieceParentComponent* PuzzlePiece : PuzzlePieceParentComponents)
@@ -135,6 +137,7 @@ void APuzzleModel::Explode()
 				PuzzlePiece->SetIsOnBoard(false);
 				PuzzlePiece->SetWorldLocation(PuzzlePiece->GetParentInitialWorldPosition());
 				PuzzlePiece->SetWorldRotation(PuzzlePiece->GetParentInitialWorldRotator());
+				CorrectPiecesPlaced++;
 				continue;
 			}
 
@@ -180,6 +183,11 @@ const int APuzzleModel::GetTotalPieces() const
 	return TotalPieces;
 }
 
+const int APuzzleModel::GetCorrectPiecesPlaced() const
+{
+	return CorrectPiecesPlaced;
+}
+
 const int APuzzleModel::GetInitialPieces() const
 {
 	return InitialPieces;
@@ -188,6 +196,12 @@ const int APuzzleModel::GetInitialPieces() const
 const float APuzzleModel::GetOffsetDistance() const
 {
 	return OffsetDistance;
+}
+
+void APuzzleModel::OnPiecePlaced()
+{
+	CorrectPiecesPlaced++;
+	OnPiecePlacedEvent.Broadcast();
 }
 
 const void APuzzleModel::SetInitialPieces(int32 pieces)
