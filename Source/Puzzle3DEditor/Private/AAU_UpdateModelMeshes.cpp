@@ -208,7 +208,7 @@ void UAAU_UpdateModelMeshes::HarvestComponentsAndCreateBlueprint(ADatasmithScene
 
     // Criar a nova Blueprint child
     FString BPName = FString::Printf(TEXT("BP_%s"), *SceneActor->GetActorLabel());
-    UPackage* Package = CreatePackage(*FString::Printf(TEXT("/Game/Blueprints/%s"), *BPName));
+    UPackage* Package = CreatePackage(*FString::Printf(TEXT("/Game/Blueprints/Sculptures/%s"), *BPName));
 
     UBlueprint* NewBlueprint = FKismetEditorUtilities::CreateBlueprint(
         ParentClass, Package, *BPName, BPTYPE_Normal, UBlueprint::StaticClass(), UBlueprintGeneratedClass::StaticClass());
