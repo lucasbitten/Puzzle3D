@@ -206,8 +206,9 @@ void UAAU_UpdateModelMeshes::HarvestComponentsAndCreateBlueprint(ADatasmithScene
         return;
     }
 
+    FString sculptureName = SceneActor->GetActorLabel();
     // Criar a nova Blueprint child
-    FString BPName = FString::Printf(TEXT("BP_%s"), *SceneActor->GetActorLabel());
+    FString BPName = FString::Printf(TEXT("BP_%s"), *sculptureName);
     UPackage* Package = CreatePackage(*FString::Printf(TEXT("/Game/Blueprints/Sculptures/%s"), *BPName));
 
     UBlueprint* NewBlueprint = FKismetEditorUtilities::CreateBlueprint(
@@ -250,7 +251,7 @@ void UAAU_UpdateModelMeshes::HarvestComponentsAndCreateBlueprint(ADatasmithScene
 
     int32 count = 0;
     int32 innerMeshCount = 0;
-
+    FString PieceName;
     for (auto& Pair : SceneActor->RelatedActors)
     {
         if (AActor* Actor = Pair.Value.Get())
@@ -296,7 +297,7 @@ void UAAU_UpdateModelMeshes::HarvestComponentsAndCreateBlueprint(ADatasmithScene
                         FRotator ShellRotation = StaticMeshComponent->GetRelativeRotation();
                         FVector ShellScale = StaticMeshComponent->GetRelativeScale3D();
 
-                        FString NewShellParentName = FString::Printf(TEXT("PuzzlePart_Shell_Parent"));
+                        FString NewShellParentName = FString::Printf(TEXT("Shell"));
 
 
                         USCS_Node* NewShellParentNode = SCS->CreateNode(UPuzzlePieceParentComponent::StaticClass(), *NewShellParentName);
@@ -305,6 +306,8 @@ void UAAU_UpdateModelMeshes::HarvestComponentsAndCreateBlueprint(ADatasmithScene
                         if (NewShellParentComponent)
                         {
                             // Copie as propriedades de transformação
+                            PieceName = FString::Printf(TEXT("%s_%s"), *sculptureName, *NewShellParentName);
+                            NewShellParentComponent->SetIdentifier(PieceName);
                             NewShellParentComponent->SetRelativeLocation(ShellLocation);
                             NewShellParentComponent->SetWorldRotation(ShellRotation);
                             NewShellParentComponent->SetWorldScale3D(FVector::One());
@@ -312,7 +315,7 @@ void UAAU_UpdateModelMeshes::HarvestComponentsAndCreateBlueprint(ADatasmithScene
 
 
                             // Criar um novo nó com UPuzzlePiecesComponent para a Shell
-                            FString NewChildName = FString::Printf(TEXT("PuzzlePart_Shell"));
+                            FString NewChildName = FString::Printf(TEXT("Shell_Mesh"));
                             USCS_Node* NewShellNode = SCS->CreateNode(UPuzzlePiecesComponent::StaticClass(), *NewChildName);
                             UPuzzlePiecesComponent* NewPuzzlePartComponent = Cast<UPuzzlePiecesComponent>(NewShellNode->ComponentTemplate);
 
@@ -355,13 +358,16 @@ void UAAU_UpdateModelMeshes::HarvestComponentsAndCreateBlueprint(ADatasmithScene
 
 
                         // Criar um novo nó de componente de cena
-                        FString NewComponentName = FString::Printf(TEXT("PuzzlePart_%d_Parent"), count);
+                        FString NewComponentName = FString::Printf(TEXT("Piece_%d"), count);
 
                         USCS_Node* NewSceneNode = SCS->CreateNode(UPuzzlePieceParentComponent::StaticClass(), *NewComponentName);
                         UPuzzlePieceParentComponent* NewSceneComponent = Cast<UPuzzlePieceParentComponent>(NewSceneNode->ComponentTemplate);
 
                         if (NewSceneComponent)
                         {
+                            PieceName = FString::Printf(TEXT("%s_%s"), *sculptureName, *NewComponentName);
+                            NewSceneComponent->SetIdentifier(PieceName);
+
                             // Copie as propriedades de transformação
                             NewSceneComponent->SetRelativeLocation(Location);
                             NewSceneComponent->SetWorldRotation(OppositeRotator);
@@ -386,7 +392,7 @@ void UAAU_UpdateModelMeshes::HarvestComponentsAndCreateBlueprint(ADatasmithScene
                                     FVector ChildScales = ChildStaticMeshComponent->GetRelativeScale3D();
 
                                     // Criar um novo nó com UPuzzlePiecesComponent para a child
-                                    FString NewChildName = FString::Printf(TEXT("PuzzlePart_%d"), count);
+                                    FString NewChildName = FString::Printf(TEXT("Piece_%d_Mesh"), count);
                                     USCS_Node* NewChildNode = SCS->CreateNode(UPuzzlePiecesComponent::StaticClass(), *NewChildName);
                                     UPuzzlePiecesComponent* NewPuzzlePartComponent = Cast<UPuzzlePiecesComponent>(NewChildNode->ComponentTemplate);
 
@@ -422,8 +428,8 @@ void UAAU_UpdateModelMeshes::HarvestComponentsAndCreateBlueprint(ADatasmithScene
                             // Adicionar o novo nó à lista temporária
                             NewNodes.Add(NewSceneNode);
                         }
+                        count++;
                     }
-                    count++;
                 }
             }
         }

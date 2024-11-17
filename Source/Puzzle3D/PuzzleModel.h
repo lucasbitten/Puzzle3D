@@ -68,7 +68,7 @@ public:
 	UFUNCTION(BlueprintCallable)
 	const float GetOffsetDistance() const;
 
-	void OnPiecePlaced();
+	void OnPiecePlaced(UPuzzlePieceParentComponent* piece);
 
 	UPROPERTY(EditAnywhere, Category = "Piece Movement")
 	bool ShowDebug;
@@ -112,6 +112,17 @@ private:
 	int TotalPieces;
 
 	int CorrectPiecesPlaced;
+
+	void SaveAllPieces();
+
+	void SavePiece(FString PieceID, bool IsCorrectlyPositioned);
+
+	void LoadAllPieces();
+
+	void LoadPiece(FString PieceID);
+
+	UPuzzlePieceParentComponent* FindPieceByIdentifier(FString PieceID);
+
 
 };
 

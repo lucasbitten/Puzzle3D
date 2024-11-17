@@ -27,6 +27,16 @@ void UPuzzlePieceParentComponent::BeginPlay()
 }
 
 
+void UPuzzlePieceParentComponent::SetIdentifier(FString identifier)
+{
+    Identifier = identifier;
+}
+
+FString UPuzzlePieceParentComponent::GetIdentifier()
+{
+    return Identifier;
+}
+
 void UPuzzlePieceParentComponent::SetLerpCurve(UCurveFloat* Curve)
 {
     LerpCurve = Curve;
@@ -355,7 +365,7 @@ void UPuzzlePieceParentComponent::OnLerpToCorrectPositionTimelineFinished()
     OnLerpToCorrectPositionCompletedCallback.Broadcast();
     if (PuzzleModel)
     {
-        PuzzleModel->OnPiecePlaced();
+        PuzzleModel->OnPiecePlaced(this);
     }
 }
 

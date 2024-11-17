@@ -4,14 +4,86 @@
 #include "Engine/StaticMeshActor.h"
 #include <Kismet/KismetMathLibrary.h>
 #include "InnerMesh.h"
+#include "PuzzleSaveGame.h" 
+#include <Kismet/GameplayStatics.h>
 
 // Sets default values
 APuzzleModel::APuzzleModel()
 {
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = false;
-
 }
+
+
+void APuzzleModel::SaveAllPieces()
+{
+	UPuzzleSaveGame* SaveGameInstance = Cast<UPuzzleSaveGame>(UGameplayStatics::CreateSaveGameObject(UPuzzleSaveGame::StaticClass()));
+	SaveGameInstance->SaveAllPiecesState("EsculturaExemplo", PuzzlePieceParentComponents);
+}
+
+// Função para salvar o estado de uma peça específica
+void APuzzleModel::SavePiece(FString PieceID, bool IsCorrectlyPositioned)
+{
+	UPuzzleSaveGame* SaveGameInstance = Cast<UPuzzleSaveGame>(UGameplayStatics::CreateSaveGameObject(UPuzzleSaveGame::StaticClass()));
+
+	// Chama o método de salvar a peça específica, passando o PieceID (identifier)
+	SaveGameInstance->SavePieceState("EsculturaExemplo", PieceID, IsCorrectlyPositioned);
+}
+
+void APuzzleModel::LoadAllPieces()
+{
+	UPuzzleSaveGame* SaveGameInstance = Cast<UPuzzleSaveGame>(UGameplayStatics::CreateSaveGameObject(UPuzzleSaveGame::StaticClass()));
+
+	TArray<FPuzzlePieceSaveData> LoadedPieces = SaveGameInstance->LoadAllPiecesState("EsculturaExemplo");
+
+	// Agora você pode atualizar as peças no seu modelo com os dados carregados
+	for (int i = 0; i < LoadedPieces.Num(); i++)
+	{
+		UPuzzlePieceParentComponent* PuzzlePiece = FindPieceByIdentifier(LoadedPieces[i].PieceID);
+
+		if (PuzzlePiece)
+		{
+			// Atualiza a peça com o estado carregado
+			PuzzlePiece->SetIsLocked(LoadedPieces[i].IsCorrectlyPositioned);
+		}
+	}
+}
+
+// Função para carregar o estado de uma peça específica
+void APuzzleModel::LoadPiece(FString PieceID)
+{
+	UPuzzleSaveGame* SaveGameInstance = Cast<UPuzzleSaveGame>(UGameplayStatics::CreateSaveGameObject(UPuzzleSaveGame::StaticClass()));
+
+	bool IsCorrectlyPositioned = false;
+	bool bLoaded = SaveGameInstance->LoadPieceState("EsculturaExemplo", PieceID, IsCorrectlyPositioned);
+
+	if (bLoaded)
+	{
+		// Procura a peça pelo identifier no array de peças
+		UPuzzlePieceParentComponent* PuzzlePiece = FindPieceByIdentifier(PieceID);
+
+		if (PuzzlePiece)
+		{
+			// Atualiza o estado da peça com o valor carregado
+			PuzzlePiece->SetIsLocked(IsCorrectlyPositioned); // Ajuste de acordo com sua lógica
+		}
+	}
+}
+
+
+UPuzzlePieceParentComponent* APuzzleModel::FindPieceByIdentifier(FString PieceID)
+{
+	for (UPuzzlePieceParentComponent* Piece : PuzzlePieceParentComponents)
+	{
+		if (Piece && Piece->GetIdentifier() == PieceID)
+		{
+			return Piece;  // Retorna a peça encontrada
+		}
+	}
+
+	return nullptr;  // Retorna nullptr se não encontrar a peça
+}
+
 
 // Called when the game starts or when spawned
 void APuzzleModel::BeginPlay()
@@ -33,8 +105,9 @@ void APuzzleModel::BeginPlay()
 		}
 
 	}
+	LoadAllPieces();
 	Explode();
-
+	SaveAllPieces();
 }
 
 // Called every frame
@@ -129,7 +202,7 @@ void APuzzleModel::Explode()
 
 			PuzzlePiece->SetCanLockPieces(CanLockPieces);
 
-			if (skippedPieces < InitialPieces)
+			if (skippedPieces < InitialPieces || PuzzlePiece->GetIsLocked())
 			{
 				skippedPieces++;
 				PuzzlePiece->SetIsLocked(true);
@@ -198,10 +271,11 @@ const float APuzzleModel::GetOffsetDistance() const
 	return OffsetDistance;
 }
 
-void APuzzleModel::OnPiecePlaced()
+void APuzzleModel::OnPiecePlaced(UPuzzlePieceParentComponent* piece)
 {
 	CorrectPiecesPlaced++;
 	OnPiecePlacedEvent.Broadcast();
+	SaveAllPieces();
 }
 
 const void APuzzleModel::SetInitialPieces(int32 pieces)

@@ -32,6 +32,9 @@ protected:
 
 public:	
 
+	void SetIdentifier(FString identifier);
+	FString GetIdentifier();
+
 	void SetLerpCurve(UCurveFloat* Curve);
 
 	// Called every frame
@@ -87,6 +90,9 @@ public:
 
 
 private:
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Initial Info", meta = (AllowPrivateAccess = "true"))
+	FString Identifier;
 
 	APuzzleModel* PuzzleModel;
 
