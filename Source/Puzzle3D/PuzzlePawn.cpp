@@ -202,7 +202,7 @@ void APuzzlePawn::HandlePieceTouched(FHitResult& HitResult)
 			CurrentPieceComponent = PieceParent;
 			if (!OriginalMaterial)
 			{
-				UMaterialInterface* material = CurrentPieceComponent->GetPieceMesh()->GetMaterial(1);
+				UMaterialInterface* material = CurrentPieceComponent->GetPieceMesh()->GetMaterial(0);
 
 				if (material)
 				{
@@ -216,7 +216,7 @@ void APuzzlePawn::HandlePieceTouched(FHitResult& HitResult)
 
 			if (PuzzleGameInstance && PuzzleGameInstance->ShowHints)
 			{
-				CurrentPieceComponent->GetPieceMesh()->SetMaterial(1, HintMaterial);
+				CurrentPieceComponent->GetPieceMesh()->SetMaterial(0, HintMaterial);
 			}
 
 			CanMovePiece = false;
@@ -247,7 +247,7 @@ void APuzzlePawn::DeselectPieceComponent()
 {
 	if (CurrentPieceComponent)
 	{
-		CurrentPieceComponent->GetPieceMesh()->SetMaterial(1, OriginalMaterial);
+		CurrentPieceComponent->GetPieceMesh()->SetMaterial(0, OriginalMaterial);
 	}
 
 }

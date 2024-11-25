@@ -98,6 +98,9 @@ private:
 	UFUNCTION(BlueprintCallable)
 	void Explode();
 
+	UFUNCTION(BlueprintCallable)
+	void ResetModel();
+
 	AGM_PuzzleMode* PuzzleMode;
 
 	TArray<UPuzzlePieceParentComponent*> PuzzlePieceParentComponents;
@@ -123,7 +126,7 @@ private:
 
 	UPuzzlePieceParentComponent* FindPieceByIdentifier(FString PieceID);
 
-
+	bool loadedFromSaveGame;
 };
 
 template <typename T>

@@ -42,6 +42,10 @@ public:
     UPROPERTY(BlueprintReadWrite)
     TArray<FPuzzleSaveData> SavedPuzzles;
 
+
+    UPuzzleSaveGame* LoadOrCreateSaveGame();
+
+
     // Função para salvar todas as peças de uma escultura
     void SaveAllPiecesState(FString SculptureName, const TArray<UPuzzlePieceParentComponent*>& Pieces);
 
@@ -53,4 +57,7 @@ public:
 
     // Função para carregar o estado de uma peça específica
     bool LoadPieceState(FString SculptureName, FString PieceID, bool& IsCorrectlyPositioned);
+
+    // Função para limpar o save game
+    static bool ClearSaveGame(FString SlotName, int32 UserIndex = 0);
 };

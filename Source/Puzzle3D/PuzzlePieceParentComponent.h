@@ -56,21 +56,21 @@ public:
 	UFUNCTION(BlueprintCallable)
 	const bool GetIsLocked() const;
 	UFUNCTION(BlueprintCallable)
-	const void SetIsLocked(bool locked);
+	void SetIsLocked(bool locked);
 
 
-	const void SetCanLockPieces(bool canLock);
+	void SetCanLockPieces(bool canLock);
 
 
 	const bool GetIsShell() const;
 
-	const void SetIsShell(bool isShell);
+	void SetIsShell(bool isShell);
 
 	UFUNCTION(BlueprintCallable)
 	const bool GetIsOnBoard() const;
 
 	UFUNCTION(BlueprintCallable)
-	const void SetIsOnBoard(bool isOnBoard);
+	void SetIsOnBoard(bool isOnBoard);
 
 	void SetOffsetDistance(float offset);
 

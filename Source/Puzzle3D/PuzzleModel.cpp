@@ -18,55 +18,108 @@ APuzzleModel::APuzzleModel()
 void APuzzleModel::SaveAllPieces()
 {
 	UPuzzleSaveGame* SaveGameInstance = Cast<UPuzzleSaveGame>(UGameplayStatics::CreateSaveGameObject(UPuzzleSaveGame::StaticClass()));
-	SaveGameInstance->SaveAllPiecesState("EsculturaExemplo", PuzzlePieceParentComponents);
+	if (!SaveGameInstance)
+	{
+		UE_LOG(LogTemp, Error, TEXT("SaveAllPieces: Failed to create SaveGame object."));
+		return;
+	}
+
+	SaveGameInstance->SaveAllPiecesState(GetActorLabel(), PuzzlePieceParentComponents);
+
+	bool bSaved = UGameplayStatics::SaveGameToSlot(SaveGameInstance, GetActorLabel(), 0);
+	if (bSaved)
+	{
+		UE_LOG(LogTemp, Log, TEXT("SaveAllPieces: Successfully saved all pieces for sculpture '%s'."), *GetActorLabel());
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("SaveAllPieces: Failed to save all pieces for sculpture '%s'."), *GetActorLabel());
+	}
 }
 
-// Função para salvar o estado de uma peça específica
+
 void APuzzleModel::SavePiece(FString PieceID, bool IsCorrectlyPositioned)
 {
 	UPuzzleSaveGame* SaveGameInstance = Cast<UPuzzleSaveGame>(UGameplayStatics::CreateSaveGameObject(UPuzzleSaveGame::StaticClass()));
+	if (!SaveGameInstance)
+	{
+		UE_LOG(LogTemp, Error, TEXT("SavePiece: Failed to create SaveGame object."));
+		return;
+	}
 
-	// Chama o método de salvar a peça específica, passando o PieceID (identifier)
-	SaveGameInstance->SavePieceState("EsculturaExemplo", PieceID, IsCorrectlyPositioned);
+	SaveGameInstance->SavePieceState(GetActorLabel(), PieceID, IsCorrectlyPositioned);
+
+	bool bSaved = UGameplayStatics::SaveGameToSlot(SaveGameInstance, GetActorLabel(), 0);
+	if (bSaved)
+	{
+		UE_LOG(LogTemp, Log, TEXT("SavePiece: Successfully saved piece '%s' for sculpture '%s'."), *PieceID, *GetActorLabel());
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("SavePiece: Failed to save piece '%s' for sculpture '%s'."), *PieceID, *GetActorLabel());
+	}
 }
 
 void APuzzleModel::LoadAllPieces()
 {
-	UPuzzleSaveGame* SaveGameInstance = Cast<UPuzzleSaveGame>(UGameplayStatics::CreateSaveGameObject(UPuzzleSaveGame::StaticClass()));
+	UPuzzleSaveGame* SaveGameInstance = Cast<UPuzzleSaveGame>(UGameplayStatics::LoadGameFromSlot(GetActorLabel(), 0));
+	if (!SaveGameInstance)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("LoadAllPieces: No SaveGame object found for sculpture '%s'. Using default state."), *GetActorLabel());
+		return;
+	}
 
-	TArray<FPuzzlePieceSaveData> LoadedPieces = SaveGameInstance->LoadAllPiecesState("EsculturaExemplo");
+	TArray<FPuzzlePieceSaveData> LoadedPieces = SaveGameInstance->LoadAllPiecesState(GetActorLabel());
+	if (LoadedPieces.Num() == 0)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("LoadAllPieces: No pieces data found for sculpture '%s'."), *GetActorLabel());
+		return;
+	}
 
-	// Agora você pode atualizar as peças no seu modelo com os dados carregados
 	for (int i = 0; i < LoadedPieces.Num(); i++)
 	{
 		UPuzzlePieceParentComponent* PuzzlePiece = FindPieceByIdentifier(LoadedPieces[i].PieceID);
-
 		if (PuzzlePiece)
 		{
-			// Atualiza a peça com o estado carregado
 			PuzzlePiece->SetIsLocked(LoadedPieces[i].IsCorrectlyPositioned);
 		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("LoadAllPieces: Piece '%s' not found in the current scene."), *LoadedPieces[i].PieceID);
+		}
 	}
+
+	loadedFromSaveGame = true;
 }
 
 // Função para carregar o estado de uma peça específica
 void APuzzleModel::LoadPiece(FString PieceID)
 {
-	UPuzzleSaveGame* SaveGameInstance = Cast<UPuzzleSaveGame>(UGameplayStatics::CreateSaveGameObject(UPuzzleSaveGame::StaticClass()));
+	UPuzzleSaveGame* SaveGameInstance = Cast<UPuzzleSaveGame>(UGameplayStatics::LoadGameFromSlot(GetActorLabel(), 0));
+	if (!SaveGameInstance)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("LoadPiece: No SaveGame object found for sculpture '%s'."), *GetActorLabel());
+		return;
+	}
 
 	bool IsCorrectlyPositioned = false;
-	bool bLoaded = SaveGameInstance->LoadPieceState("EsculturaExemplo", PieceID, IsCorrectlyPositioned);
+	bool bLoaded = SaveGameInstance->LoadPieceState(GetActorLabel(), PieceID, IsCorrectlyPositioned);
 
 	if (bLoaded)
 	{
-		// Procura a peça pelo identifier no array de peças
 		UPuzzlePieceParentComponent* PuzzlePiece = FindPieceByIdentifier(PieceID);
-
 		if (PuzzlePiece)
 		{
-			// Atualiza o estado da peça com o valor carregado
-			PuzzlePiece->SetIsLocked(IsCorrectlyPositioned); // Ajuste de acordo com sua lógica
+			PuzzlePiece->SetIsLocked(IsCorrectlyPositioned);
 		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("LoadPiece: Piece '%s' not found in the current scene."), *PieceID);
+		}
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("LoadPiece: Failed to load piece '%s' for sculpture '%s'."), *PieceID, *GetActorLabel());
 	}
 }
 
@@ -77,11 +130,11 @@ UPuzzlePieceParentComponent* APuzzleModel::FindPieceByIdentifier(FString PieceID
 	{
 		if (Piece && Piece->GetIdentifier() == PieceID)
 		{
-			return Piece;  // Retorna a peça encontrada
+			return Piece;
 		}
 	}
 
-	return nullptr;  // Retorna nullptr se não encontrar a peça
+	return nullptr;
 }
 
 
@@ -105,8 +158,10 @@ void APuzzleModel::BeginPlay()
 		}
 
 	}
+	UE_LOG(LogTemp, Log, TEXT("BeginPlay: Loading all pieces for sculpture '%s'."), *GetActorLabel());
 	LoadAllPieces();
 	Explode();
+	UE_LOG(LogTemp, Log, TEXT("BeginPlay: Saving initial state for sculpture '%s'."), *GetActorLabel());
 	SaveAllPieces();
 }
 
@@ -202,7 +257,7 @@ void APuzzleModel::Explode()
 
 			PuzzlePiece->SetCanLockPieces(CanLockPieces);
 
-			if (skippedPieces < InitialPieces || PuzzlePiece->GetIsLocked())
+			if ((!loadedFromSaveGame && skippedPieces < InitialPieces || PuzzlePiece->GetIsLocked()))
 			{
 				skippedPieces++;
 				PuzzlePiece->SetIsLocked(true);
@@ -251,6 +306,29 @@ void APuzzleModel::Explode()
 	}
 }
 
+void APuzzleModel::ResetModel()
+{
+	UPuzzleSaveGame::ClearSaveGame(GetActorLabel(), 0);
+
+	for (UPuzzlePieceParentComponent* PuzzlePiece : PuzzlePieceParentComponents)
+	{
+		if (PuzzlePiece != nullptr)
+		{
+
+			if (PuzzlePiece->GetIsShell())
+			{
+				continue;
+			}
+
+			PuzzlePiece->SetCanLockPieces(CanLockPieces);
+			PuzzlePiece->SetIsLocked(false);
+		}
+	}
+	loadedFromSaveGame = false;
+	Explode();
+	SaveAllPieces();
+}
+
 const int APuzzleModel::GetTotalPieces() const
 {
 	return TotalPieces;
@@ -275,7 +353,7 @@ void APuzzleModel::OnPiecePlaced(UPuzzlePieceParentComponent* piece)
 {
 	CorrectPiecesPlaced++;
 	OnPiecePlacedEvent.Broadcast();
-	SaveAllPieces();
+	SavePiece(piece->GetIdentifier(), true);
 }
 
 const void APuzzleModel::SetInitialPieces(int32 pieces)

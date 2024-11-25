@@ -106,19 +106,12 @@ const bool UPuzzlePieceParentComponent::GetIsLocked() const
 
 }
 
-const void UPuzzlePieceParentComponent::SetIsLocked(bool locked)
+void UPuzzlePieceParentComponent::SetIsLocked(bool locked)
 {
-    if (CanLockPieces)
-    {
-        IsLocked = locked;
-    }
-    else
-    {
-        IsLocked = false;
-    }
+    IsLocked = locked;
 }
 
-const void UPuzzlePieceParentComponent::SetCanLockPieces(bool canLock)
+void UPuzzlePieceParentComponent::SetCanLockPieces(bool canLock)
 {
     CanLockPieces = canLock;
 }
@@ -128,7 +121,7 @@ const bool UPuzzlePieceParentComponent::GetIsShell() const
     return IsShell;
 }
 
-const void UPuzzlePieceParentComponent::SetIsShell(bool isShell)
+void UPuzzlePieceParentComponent::SetIsShell(bool isShell)
 {
     IsShell = isShell;
 }
@@ -138,7 +131,7 @@ const bool UPuzzlePieceParentComponent::GetIsOnBoard() const
     return IsOnBoard;
 }
 
-const void UPuzzlePieceParentComponent::SetIsOnBoard(bool isOnBoard)
+void UPuzzlePieceParentComponent::SetIsOnBoard(bool isOnBoard)
 {
     IsOnBoard = isOnBoard;
 }
