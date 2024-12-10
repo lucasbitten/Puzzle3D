@@ -26,14 +26,7 @@
 #include "Editor/UnrealEd/Public/EditorActorFolders.h"
 #include "Editor/EditorEngine.h"
 #include "EngineUtils.h"
-#include "DatasmithSceneActor.h"
-#include "DatasmithScene.h"
-#include "DatasmithAssetImportData.h"
-#include "DatasmithImporter.h"
-#include "DatasmithBlueprintLibrary.h"
-#include "ActorFactoryDatasmithScene.h"
 #include "ExternalSourceModule.h"
-#include "Utility/DatasmithImporterUtils.h"
 #include "Editor/UnrealEd/Private/Editor/ActorPositioning.h"
 
 void UAAU_UpdateModelMeshes::GenerateModelBlueprint()
@@ -56,123 +49,13 @@ void UAAU_UpdateModelMeshes::GenerateModelBlueprint()
 
     for (UObject* AssetObject : SelectedAssets)
     {
-        // Verifique se o asset é um UDatasmithScene
-        if (UDatasmithScene* DatasmithScene = Cast<UDatasmithScene>(AssetObject))
+        // Verifique se o asset é uma Blueprint
+        if (UBlueprint* SourceBlueprint = Cast<UBlueprint>(AssetObject))
         {
-            if (!DatasmithScene)
-            {
-                UE_LOG(LogTemp, Warning, TEXT("Datasmith Scene is invalid."));
-                return;
-            }
+            FString SculptureName = SourceBlueprint->GetName();
+            FString NewBPName = FString::Printf(TEXT("BP_%s_New"), *SculptureName);
 
-            ADatasmithSceneActor* RootActor = nullptr;
-            ULevel* InLevel = GWorld->GetCurrentLevel();
-
-            FTransform Transform = FTransform::Identity;
-
-            EObjectFlags Flags = EObjectFlags::RF_Transactional;
-
-            // Obter o mundo do editor
-            UWorld* World = GEditor->GetEditorWorldContext().World();
-            if (!World)
-            {
-                UE_LOG(LogTemp, Error, TEXT("Failed to get Editor World."));
-                return;
-            }
-
-            if (!DatasmithScene || !DatasmithScene->AssetImportData)
-            {
-                return; // Can't import without the AssetImportData
-            }
-
-            TSharedPtr< IDatasmithScene > DatasmithSceneElement = FDatasmithImporterUtils::LoadDatasmithScene(DatasmithScene);
-
-            if (!DatasmithSceneElement.IsValid())
-            {
-                return;
-            }
-
-
-            FName LoggerName = TEXT("DatasmithActorFactory");
-            FText LoggerLabel = FText::FromString(TEXT("Datasmith Scene"));
-
-            TSharedPtr<UE::DatasmithImporter::FExternalSource> ExternalSource;
-            if (TObjectPtr<UDatasmithSceneImportData> DatasmithImportData = Cast<UDatasmithSceneImportData>(DatasmithScene->AssetImportData))
-            {
-                ExternalSource = IExternalSourceModule::Get().GetManager().TryGetExternalSourceFromImportData(*DatasmithImportData.Get());
-            }
-
-            const FString ImportPath = DatasmithScene->AssetImportData->BaseOptions.AssetOptions.PackagePath.ToString();
-            FDatasmithImportContext ImportContext(ExternalSource, false, LoggerName, LoggerLabel);
-
-            ImportContext.Options->BaseOptions = DatasmithScene->AssetImportData->BaseOptions;
-            ImportContext.Options->BaseOptions.SceneHandling = EDatasmithImportScene::CurrentLevel;
-
-            if (InLevel)
-            {
-                ImportContext.ActorsContext.ImportWorld = InLevel->GetWorld();
-            }
-
-            const bool bSilent = true;
-            TSharedPtr<FJsonObject> JsonOptions;
-            ImportContext.InitScene(DatasmithSceneElement.ToSharedRef());
-            if (!ImportContext.Init(ImportPath, Flags, GWarn, JsonOptions, bSilent))
-            {
-                return;
-            }
-
-            if (!RootActor)
-            {
-                RootActor = FDatasmithImporterUtils::CreateImportSceneActor(ImportContext, Transform);
-            }
-
-            if (!RootActor)
-            {
-                return;
-            }
-
-            ImportContext.ActorsContext.FinalSceneActors.Add(RootActor);
-            ImportContext.bIsAReimport = true;
-            ImportContext.Options->ReimportOptions.bRespawnDeletedActors = false;
-
-
-            ImportContext.SceneAsset = DatasmithScene;
-
-            // The actor might get deleted or become unreachable if the user cancel the import/finalize
-            TWeakObjectPtr<ADatasmithSceneActor> RootObjectAsWeakPtr = RootActor;
-
-            FDatasmithImporter::ImportActors(ImportContext);
-            FDatasmithImporter::FinalizeActors(ImportContext, nullptr);
-
-            RootActor = RootObjectAsWeakPtr.Get();
-
-            if (RootActor)
-            {
-                // If the root actor is still valid, ensure that it is in a world.
-                if (!RootActor->GetWorld())
-                {
-                    RootActor = nullptr;
-                }
-            }
-            HarvestComponentsAndCreateBlueprint(RootActor, APuzzleModel::StaticClass(), AlphaCurve);
-
-            for (auto& Pair : RootActor->RelatedActors)
-            {
-                if (AActor* ChildActor = Pair.Value.Get())
-                {
-                    if (ChildActor->IsValidLowLevel())
-                    {
-                        UE_LOG(LogTemp, Log, TEXT("Deleting child actor: %s"), *ChildActor->GetName());
-                        ChildActor->Destroy(); // Deletar o ator filho
-                    }
-                }
-            }
-
-            if (RootActor->IsValidLowLevel())
-            {
-                UE_LOG(LogTemp, Log, TEXT("Deleting SceneActor: %s"), *RootActor->GetName());
-                RootActor->Destroy(); // Deletar o ator raiz
-            }
+            HarvestComponentsAndCreateBlueprint(SourceBlueprint, APuzzleModel::StaticClass(), AlphaCurve);
 
         }
     }
@@ -198,15 +81,15 @@ UCurveFloat* UAAU_UpdateModelMeshes::LoadCurveFromPath(const FString& CurvePath)
 }
 
 
-void UAAU_UpdateModelMeshes::HarvestComponentsAndCreateBlueprint(ADatasmithSceneActor* SceneActor, UClass* ParentClass, UCurveFloat* AlphaCurve)
+void UAAU_UpdateModelMeshes::HarvestComponentsAndCreateBlueprint(UBlueprint* SourceBlueprint, UClass* ParentClass, UCurveFloat* AlphaCurve)
 {
-    if (!SceneActor || !ParentClass)
+    if (!SourceBlueprint || !ParentClass)
     {
-        UE_LOG(LogTemp, Warning, TEXT("SceneActor or ParentClass is null."));
+        UE_LOG(LogTemp, Warning, TEXT("SourceBlueprint or ParentClass is null."));
         return;
     }
 
-    FString sculptureName = SceneActor->GetActorLabel();
+    FString sculptureName = SourceBlueprint->GetName();
     // Criar a nova Blueprint child
     FString BPName = FString::Printf(TEXT("BP_%s"), *sculptureName);
     UPackage* Package = CreatePackage(*FString::Printf(TEXT("/Game/Blueprints/Sculptures/%s"), *BPName));
@@ -236,13 +119,6 @@ void UAAU_UpdateModelMeshes::HarvestComponentsAndCreateBlueprint(ADatasmithScene
     SCS->AddNode(RootNode);
 
 
-    FString CompletedModelName = FString::Printf(TEXT("CompletedModel"));
-    USCS_Node* CompletedModelNode = SCS->CreateNode(UStaticMeshComponent::StaticClass(), *CompletedModelName);
-    UStaticMeshComponent* CompletedModelMesh = Cast<UStaticMeshComponent>(CompletedModelNode->ComponentTemplate);
-    CompletedModelMesh->bVisibleInSceneCaptureOnly = true;
-    SCS->AddNode(CompletedModelNode);
-
-
     // Validar o nó raiz padrão
     SCS->ValidateSceneRootNodes();
 
@@ -252,187 +128,266 @@ void UAAU_UpdateModelMeshes::HarvestComponentsAndCreateBlueprint(ADatasmithScene
     int32 count = 0;
     int32 innerMeshCount = 0;
     FString PieceName;
-    for (auto& Pair : SceneActor->RelatedActors)
+    for (USCS_Node* SourceNode : SourceBlueprint->SimpleConstructionScript->GetAllNodes())
     {
-        if (AActor* Actor = Pair.Value.Get())
+        UActorComponent* ComponentTemplate = SourceNode->ComponentTemplate;
+        if (!ComponentTemplate)
         {
-            if (AStaticMeshActor* StaticMeshActor = Cast<AStaticMeshActor>(Actor))
+            continue;
+        }
+
+        UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(ComponentTemplate);
+        if (!StaticMeshComponent)
+        {
+            continue;
+        }
+
+
+        auto label = StaticMeshComponent->GetName();                
+
+        if (label.Contains(TEXT("lookat_sphere")))
+        {
+            FVector Location = StaticMeshComponent->GetRelativeLocation();
+            FRotator Rotation = StaticMeshComponent->GetRelativeRotation();
+            FVector Scale = StaticMeshComponent->GetRelativeScale3D();
+
+            FString NewName = FString::Printf(TEXT("Lookat_sphere_%d"), innerMeshCount++);
+            USCS_Node* NewNode = SCS->CreateNode(UInnerMesh::StaticClass(), *NewName);
+
+            UInnerMesh* NewInnerMesh = Cast<UInnerMesh>(NewNode->ComponentTemplate);
+
+            if (!NewInnerMesh)
             {
-                UStaticMeshComponent* StaticMeshComponent = StaticMeshActor->GetStaticMeshComponent();
-                auto label = StaticMeshComponent->GetOwner()->GetActorLabel();
-                
-                auto name = StaticMeshComponent->GetOwner()->GetName();
+                UE_LOG(LogTemp, Error, TEXT("Failed to create NewInnerMesh for %s"), *StaticMeshComponent->GetName());
+                continue;
+            }
 
-                if (label.Contains(TEXT("lookat_sphere")))
+            NewInnerMesh->SetRelativeLocation(Location);
+            NewInnerMesh->SetRelativeRotation(Rotation);
+            NewInnerMesh->SetRelativeScale3D(Scale);
+            NewNodes.Add(NewNode);
+
+        }
+        else
+        {
+            bool IsOuterShell = label.Contains(TEXT("outer")); 
+            if (IsOuterShell) // Shell for the piece movement. make it invisible
+            {
+                // Salve as propriedades da Shell
+                UStaticMesh* Shell = StaticMeshComponent->GetStaticMesh();
+                FVector ShellLocation = StaticMeshComponent->GetRelativeLocation();
+                FRotator ShellRotation = StaticMeshComponent->GetRelativeRotation();
+                FVector ShellScale = StaticMeshComponent->GetRelativeScale3D();
+
+                FString NewShellParentName = FString::Printf(TEXT("Outer_Shell"));
+
+
+                USCS_Node* NewShellParentNode = SCS->CreateNode(UPuzzlePieceParentComponent::StaticClass(), *NewShellParentName);
+                UPuzzlePieceParentComponent* NewShellParentComponent = Cast<UPuzzlePieceParentComponent>(NewShellParentNode->ComponentTemplate);
+
+                if (NewShellParentComponent)
                 {
-                    FVector Location = StaticMeshComponent->GetRelativeLocation();
-                    FRotator Rotation = StaticMeshComponent->GetRelativeRotation();
-                    FVector Scale = StaticMeshComponent->GetRelativeScale3D();
+                    // Copie as propriedades de transformação
+                    PieceName = FString::Printf(TEXT("%s_%s"), *sculptureName, *NewShellParentName);
+                    NewShellParentComponent->SetIdentifier(PieceName);
+                    NewShellParentComponent->SetRelativeLocation(ShellLocation);
+                    NewShellParentComponent->SetWorldRotation(ShellRotation);
+                    NewShellParentComponent->SetWorldScale3D(ShellScale);
+                    NewShellParentComponent->SetIsShell(true);
 
-                    FString NewName = FString::Printf(TEXT("Lookat_sphere_%d"), innerMeshCount++);
-                    USCS_Node* NewNode = SCS->CreateNode(UInnerMesh::StaticClass(), *NewName);
 
-                    UInnerMesh* NewInnerMesh = Cast<UInnerMesh>(NewNode->ComponentTemplate);
+                    // Criar um novo nó com UPuzzlePiecesComponent para a Shell
+                    FString NewChildName = FString::Printf(TEXT("Outer_Shell_Mesh"));
+                    USCS_Node* NewShellNode = SCS->CreateNode(UPuzzlePiecesComponent::StaticClass(), *NewChildName);
+                    UPuzzlePiecesComponent* NewPuzzlePartComponent = Cast<UPuzzlePiecesComponent>(NewShellNode->ComponentTemplate);
 
-                    if (!NewInnerMesh)
+                    if (NewPuzzlePartComponent)
                     {
-                        UE_LOG(LogTemp, Error, TEXT("Failed to create NewInnerMesh for %s"), *StaticMeshComponent->GetName());
-                        continue;
-                    }
+                        // Copie as propriedades
+                        NewPuzzlePartComponent->SetStaticMesh(Shell);
 
-                    NewInnerMesh->SetRelativeLocation(Location);
-                    NewInnerMesh->SetRelativeRotation(Rotation);
-                    NewInnerMesh->SetRelativeScale3D(Scale);
-                    NewNodes.Add(NewNode);
+                        // Definir o perfil de colisão padrão
+                        NewPuzzlePartComponent->SetCollisionProfileName(TEXT("BlockAllDynamic"));
 
-                }
-                else
-                {
-                    bool IsShell = label.Contains(TEXT("shell"));
-                    if (IsShell)
-                    {
-                        // Salve as propriedades da Shell
-                        UStaticMesh* Shell = StaticMeshComponent->GetStaticMesh();
-                        FVector ShellLocation = StaticMeshComponent->GetRelativeLocation();
-                        FRotator ShellRotation = StaticMeshComponent->GetRelativeRotation();
-                        FVector ShellScale = StaticMeshComponent->GetRelativeScale3D();
+                        NewPuzzlePartComponent->SetCollisionResponseToChannel(ECC_GameTraceChannel1, ECollisionResponse::ECR_Ignore); // Supondo que Pieces é ECC_GameTraceChannel1
+                        NewPuzzlePartComponent->SetCollisionResponseToChannel(ECC_GameTraceChannel2, ECollisionResponse::ECR_Block); // Supondo que Shell é ECC_GameTraceChannel2
+                        NewPuzzlePartComponent->bHiddenInSceneCapture = true;
 
-                        FString NewShellParentName = FString::Printf(TEXT("Shell"));
+                        NewPuzzlePartComponent->SetVisibility(false);
 
-
-                        USCS_Node* NewShellParentNode = SCS->CreateNode(UPuzzlePieceParentComponent::StaticClass(), *NewShellParentName);
-                        UPuzzlePieceParentComponent* NewShellParentComponent = Cast<UPuzzlePieceParentComponent>(NewShellParentNode->ComponentTemplate);
-
-                        if (NewShellParentComponent)
+                        // Verificar antes de anexar o novo nó de componente de cena ao novo nó de PuzzlePart
+                        if (ensure(NewShellNode) && ensure(NewShellParentNode))
                         {
-                            // Copie as propriedades de transformação
-                            PieceName = FString::Printf(TEXT("%s_%s"), *sculptureName, *NewShellParentName);
-                            NewShellParentComponent->SetIdentifier(PieceName);
-                            NewShellParentComponent->SetRelativeLocation(ShellLocation);
-                            NewShellParentComponent->SetWorldRotation(ShellRotation);
-                            NewShellParentComponent->SetWorldScale3D(FVector::One());
-                            NewShellParentComponent->SetIsShell(true);
-
-
-                            // Criar um novo nó com UPuzzlePiecesComponent para a Shell
-                            FString NewChildName = FString::Printf(TEXT("Shell_Mesh"));
-                            USCS_Node* NewShellNode = SCS->CreateNode(UPuzzlePiecesComponent::StaticClass(), *NewChildName);
-                            UPuzzlePiecesComponent* NewPuzzlePartComponent = Cast<UPuzzlePiecesComponent>(NewShellNode->ComponentTemplate);
-
-                            if (NewPuzzlePartComponent)
-                            {
-                                // Copie as propriedades
-                                NewPuzzlePartComponent->SetStaticMesh(Shell);
-
-                                // Definir o perfil de colisão padrão
-                                NewPuzzlePartComponent->SetCollisionProfileName(TEXT("BlockAllDynamic"));
-
-                                NewPuzzlePartComponent->SetCollisionResponseToChannel(ECC_GameTraceChannel1, ECollisionResponse::ECR_Ignore); // Supondo que Pieces é ECC_GameTraceChannel1
-                                NewPuzzlePartComponent->SetCollisionResponseToChannel(ECC_GameTraceChannel2, ECollisionResponse::ECR_Block); // Supondo que Shell é ECC_GameTraceChannel2
-                                NewPuzzlePartComponent->bHiddenInSceneCapture = true;
-
-
-                                // Verificar antes de anexar o novo nó de componente de cena ao novo nó de PuzzlePart
-                                if (ensure(NewShellNode) && ensure(NewShellParentNode))
-                                {
-                                    NewShellParentNode->AddChildNode(NewShellNode);
-                                }
-
-                            }
-
-                            NewNodes.Add(NewShellParentNode);
+                            NewShellParentNode->AddChildNode(NewShellNode);
                         }
 
- 
                     }
-                    else if(label.Contains(TEXT("parent_plane")))
+
+                    NewNodes.Add(NewShellParentNode);
+                }
+
+ 
+            }
+            else if(label.Contains(TEXT("parent_plane")))
+            {
+                // Salve as propriedades de transformação
+                FVector Location = StaticMeshComponent->GetRelativeLocation();
+                FRotator Rotation = StaticMeshComponent->GetRelativeRotation();
+                FVector OriginalScale = StaticMeshComponent->GetComponentScale();
+
+
+                FVector OppositeDirection = FRotationMatrix(Rotation).GetUnitAxis(EAxis::Z);
+                FRotator OppositeRotator = UKismetMathLibrary::FindLookAtRotation(Location, Location + OppositeDirection);
+
+
+                // Criar um novo nó de componente de cena
+                FString NewComponentName = FString::Printf(TEXT("Piece_%d"), count);
+
+                USCS_Node* NewSceneNode = SCS->CreateNode(UPuzzlePieceParentComponent::StaticClass(), *NewComponentName);
+                UPuzzlePieceParentComponent* NewSceneComponent = Cast<UPuzzlePieceParentComponent>(NewSceneNode->ComponentTemplate);
+
+                if (NewSceneComponent)
+                {
+                    PieceName = FString::Printf(TEXT("%s_%s"), *sculptureName, *NewComponentName);
+                    NewSceneComponent->SetIdentifier(PieceName);
+
+                    // Copie as propriedades de transformação
+                    NewSceneComponent->SetRelativeLocation(Location);
+                    NewSceneComponent->SetWorldRotation(OppositeRotator);
+                    NewSceneComponent->SetWorldScale3D(FVector::One());
+                    NewSceneComponent->SetIsShell(false);
+                    NewSceneComponent->SetLerpCurve(AlphaCurve);
+
+                    // Realocar filhos para o novo nó de componente de cena
+
+                    TArray<USceneComponent*> Childs;
+
+                    TArray<USCS_Node*> ChildNodes = SourceNode->GetChildNodes();
+                    if (ChildNodes.Num() == 0)
                     {
-                        // Salve as propriedades de transformação
-                        FVector Location = StaticMeshComponent->GetRelativeLocation();
-                        FRotator Rotation = StaticMeshComponent->GetRelativeRotation();
-                        FVector OriginalScale = StaticMeshComponent->GetComponentScale();
-
-
-                        FVector OppositeDirection = FRotationMatrix(Rotation).GetUnitAxis(EAxis::Z);
-                        FRotator OppositeRotator = UKismetMathLibrary::FindLookAtRotation(Location, Location + OppositeDirection);
-
-
-                        // Criar um novo nó de componente de cena
-                        FString NewComponentName = FString::Printf(TEXT("Piece_%d"), count);
-
-                        USCS_Node* NewSceneNode = SCS->CreateNode(UPuzzlePieceParentComponent::StaticClass(), *NewComponentName);
-                        UPuzzlePieceParentComponent* NewSceneComponent = Cast<UPuzzlePieceParentComponent>(NewSceneNode->ComponentTemplate);
-
-                        if (NewSceneComponent)
+                        UE_LOG(LogTemp, Warning, TEXT("No children found for node: %s"), *SourceNode->GetName());
+                    }
+                    else
+                    {
+                        for (USCS_Node* ChildNode : ChildNodes)
                         {
-                            PieceName = FString::Printf(TEXT("%s_%s"), *sculptureName, *NewComponentName);
-                            NewSceneComponent->SetIdentifier(PieceName);
-
-                            // Copie as propriedades de transformação
-                            NewSceneComponent->SetRelativeLocation(Location);
-                            NewSceneComponent->SetWorldRotation(OppositeRotator);
-                            NewSceneComponent->SetWorldScale3D(FVector::One());
-                            NewSceneComponent->SetIsShell(false);
-                            NewSceneComponent->SetLerpCurve(AlphaCurve);
-
-                            // Realocar filhos para o novo nó de componente de cena
-
-                            TArray<USceneComponent*> Childs;
-
-                            StaticMeshComponent->GetChildrenComponents(true, Childs);
-                            for (auto ChildNode : Childs)
+                            UStaticMeshComponent* ChildStaticMeshComponent = Cast<UStaticMeshComponent>(ChildNode->ComponentTemplate);
+                            if (ChildStaticMeshComponent)
                             {
-                                UStaticMeshComponent* ChildStaticMeshComponent = Cast<UStaticMeshComponent>(ChildNode);
-                                if (ChildStaticMeshComponent)
+                                // Salve as propriedades da child
+                                UStaticMesh* Mesh = ChildStaticMeshComponent->GetStaticMesh();
+                                FVector ChildLocation = ChildStaticMeshComponent->GetRelativeLocation();
+                                FRotator ChildRotation = ChildStaticMeshComponent->GetComponentRotation();
+                                FVector ChildScales = ChildStaticMeshComponent->GetRelativeScale3D();
+
+                                // Criar um novo nó com UPuzzlePiecesComponent para a child
+                                FString NewChildName = FString::Printf(TEXT("Piece_%d_Mesh"), count);
+                                USCS_Node* NewChildNode = SCS->CreateNode(UPuzzlePiecesComponent::StaticClass(), *NewChildName);
+                                UPuzzlePiecesComponent* NewPuzzlePartComponent = Cast<UPuzzlePiecesComponent>(NewChildNode->ComponentTemplate);
+
+                                if (NewPuzzlePartComponent)
                                 {
-                                    // Salve as propriedades da child
-                                    UStaticMesh* Mesh = ChildStaticMeshComponent->GetStaticMesh();
-                                    FVector ChildLocation = ChildStaticMeshComponent->GetRelativeLocation();
-                                    FRotator ChildRotation = ChildStaticMeshComponent->GetComponentRotation();
-                                    FVector ChildScales = ChildStaticMeshComponent->GetRelativeScale3D();
+                                    // Copie as propriedades
+                                    NewPuzzlePartComponent->SetStaticMesh(Mesh);
+                                    NewPuzzlePartComponent->SetRelativeLocation(ChildLocation);
 
-                                    // Criar um novo nó com UPuzzlePiecesComponent para a child
-                                    FString NewChildName = FString::Printf(TEXT("Piece_%d_Mesh"), count);
-                                    USCS_Node* NewChildNode = SCS->CreateNode(UPuzzlePiecesComponent::StaticClass(), *NewChildName);
-                                    UPuzzlePiecesComponent* NewPuzzlePartComponent = Cast<UPuzzlePiecesComponent>(NewChildNode->ComponentTemplate);
 
-                                    if (NewPuzzlePartComponent)
+                                    FRotator PieceEndRotator2 = UKismetMathLibrary::ComposeRotators(ChildRotation, UKismetMathLibrary::NegateRotator(OppositeRotator));
+                                    NewPuzzlePartComponent->SetWorldRotation(PieceEndRotator2);
+                                    NewPuzzlePartComponent->SetWorldScale3D(ChildScales * OriginalScale);
+                                    //NewPuzzlePartComponent->SetRelativeLocation(FVector::Zero());
+
+                                    // Definir o perfil de colisão padrão
+                                    NewPuzzlePartComponent->SetCollisionProfileName(TEXT("BlockAllDynamic"));
+
+                                    // Ajustar canais específicos
+                                    NewPuzzlePartComponent->SetCollisionResponseToChannel(ECC_GameTraceChannel1, ECollisionResponse::ECR_Block); // Supondo que Pieces é ECC_GameTraceChannel1
+                                    NewPuzzlePartComponent->SetCollisionResponseToChannel(ECC_GameTraceChannel2, ECollisionResponse::ECR_Ignore); // Supondo que Shell é ECC_GameTraceChannel2
+                                    NewPuzzlePartComponent->bHiddenInSceneCapture = true;
+
+                                    // Verificar antes de anexar o novo nó de componente de cena ao novo nó de PuzzlePart
+                                    if (ensure(NewSceneNode) && ensure(NewChildNode))
                                     {
-                                        // Copie as propriedades
-                                        NewPuzzlePartComponent->SetStaticMesh(Mesh);
-                                        NewPuzzlePartComponent->SetRelativeLocation(ChildLocation);
-
-
-                                        FRotator PieceEndRotator2 = UKismetMathLibrary::ComposeRotators(ChildRotation, UKismetMathLibrary::NegateRotator(OppositeRotator));
-                                        NewPuzzlePartComponent->SetWorldRotation(PieceEndRotator2);
-                                        NewPuzzlePartComponent->SetWorldScale3D(ChildScales * OriginalScale);
-                                        //NewPuzzlePartComponent->SetRelativeLocation(FVector::Zero());
-
-                                        // Definir o perfil de colisão padrão
-                                        NewPuzzlePartComponent->SetCollisionProfileName(TEXT("BlockAllDynamic"));
-
-                                        // Ajustar canais específicos
-                                        NewPuzzlePartComponent->SetCollisionResponseToChannel(ECC_GameTraceChannel1, ECollisionResponse::ECR_Block); // Supondo que Pieces é ECC_GameTraceChannel1
-                                        NewPuzzlePartComponent->SetCollisionResponseToChannel(ECC_GameTraceChannel2, ECollisionResponse::ECR_Ignore); // Supondo que Shell é ECC_GameTraceChannel2
-                                        NewPuzzlePartComponent->bHiddenInSceneCapture = true;
-
-                                        // Verificar antes de anexar o novo nó de componente de cena ao novo nó de PuzzlePart
-                                        if (ensure(NewSceneNode) && ensure(NewChildNode))
-                                        {
-                                            NewSceneNode->AddChildNode(NewChildNode);
-                                        }
+                                        NewSceneNode->AddChildNode(NewChildNode);
                                     }
                                 }
                             }
-
-                            // Adicionar o novo nó à lista temporária
-                            NewNodes.Add(NewSceneNode);
                         }
-                        count++;
+
                     }
+
+                    // Adicionar o novo nó à lista temporária
+                    NewNodes.Add(NewSceneNode);
                 }
+                count++;
             }
+            else if (label.Contains(TEXT("Shell"))) 
+            {
+                UStaticMesh* Shell = StaticMeshComponent->GetStaticMesh();
+                FVector ShellLocation = StaticMeshComponent->GetRelativeLocation();
+                FRotator ShellRotation = StaticMeshComponent->GetRelativeRotation();
+                FVector ShellScale = StaticMeshComponent->GetRelativeScale3D();
+
+                FString NewShellParentName = FString::Printf(TEXT("Inner_Shell"));
+
+                USCS_Node* NewShellParentNode = SCS->CreateNode(UPuzzlePieceParentComponent::StaticClass(), *NewShellParentName);
+                UPuzzlePieceParentComponent* NewShellParentComponent = Cast<UPuzzlePieceParentComponent>(NewShellParentNode->ComponentTemplate);
+
+                if (NewShellParentComponent)
+                {
+                    // Copie as propriedades de transformação
+                    PieceName = FString::Printf(TEXT("%s_%s"), *sculptureName, *NewShellParentName);
+                    NewShellParentComponent->SetIdentifier(PieceName);
+                    NewShellParentComponent->SetRelativeLocation(ShellLocation);
+                    NewShellParentComponent->SetWorldRotation(ShellRotation);
+                    NewShellParentComponent->SetWorldScale3D(ShellScale);
+                    NewShellParentComponent->SetIsShell(true);
+
+
+                    // Criar um novo nó com UPuzzlePiecesComponent para a Shell
+                    FString NewChildName = FString::Printf(TEXT("Inner_Shell_Mesh"));
+                    USCS_Node* NewShellNode = SCS->CreateNode(UPuzzlePiecesComponent::StaticClass(), *NewChildName);
+                    UPuzzlePiecesComponent* NewPuzzlePartComponent = Cast<UPuzzlePiecesComponent>(NewShellNode->ComponentTemplate);
+
+                    if (NewPuzzlePartComponent)
+                    {
+                        // Copie as propriedades
+                        NewPuzzlePartComponent->SetStaticMesh(Shell);
+
+                        // Definir o perfil de colisão padrão
+                        NewPuzzlePartComponent->SetCollisionProfileName(TEXT("NoCollision"));
+                        NewPuzzlePartComponent->bHiddenInSceneCapture = true;
+
+                        // Verificar antes de anexar o novo nó de componente de cena ao novo nó de PuzzlePart
+                        if (ensure(NewShellNode) && ensure(NewShellParentNode))
+                        {
+                            NewShellParentNode->AddChildNode(NewShellNode);
+                        }
+                    }
+
+                    NewNodes.Add(NewShellParentNode);
+                }
+
+
+            }
+            else if (label.Contains(TEXT("completed")))
+            {
+                FString CompletedModelName = FString::Printf(TEXT("CompletedModel"));
+                USCS_Node* CompletedModelNode = SCS->CreateNode(UStaticMeshComponent::StaticClass(), *CompletedModelName);
+                UStaticMeshComponent* CompletedModelMesh = Cast<UStaticMeshComponent>(CompletedModelNode->ComponentTemplate);
+                CompletedModelMesh->SetStaticMesh(StaticMeshComponent->GetStaticMesh());
+                CompletedModelMesh->bVisibleInSceneCaptureOnly = true;
+                SCS->AddNode(CompletedModelNode);
+
+                CompletedModelMesh->SetRelativeLocation(StaticMeshComponent->GetRelativeLocation());
+                CompletedModelMesh->SetRelativeRotation(StaticMeshComponent->GetRelativeRotation());
+                CompletedModelMesh->SetWorldScale3D(StaticMeshComponent->GetComponentScale());
+
+            }
+
         }
+        
+        
 
     }
 

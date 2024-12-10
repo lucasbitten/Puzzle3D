@@ -19,7 +19,7 @@ public:
 	UFUNCTION(BlueprintCallable, CallInEditor)
 	void GenerateModelBlueprint();
 
-	void HarvestComponentsAndCreateBlueprint(ADatasmithSceneActor* SceneActor, UClass* ParentClass, UCurveFloat* AlphaCurve);
+	void HarvestComponentsAndCreateBlueprint(UBlueprint* SourceBlueprint, UClass* ParentClass, UCurveFloat* AlphaCurve);
 
 	UFUNCTION(CallInEditor, Category = "Scene Setup")
 	void SetAllStaticMeshesHiddenInSceneCapture();

@@ -91,6 +91,7 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Events")
 	FOnPiecePlaced OnPiecePlacedEvent;
 
+
 private:
 
 	void SetupModel();
@@ -127,6 +128,7 @@ private:
 	UPuzzlePieceParentComponent* FindPieceByIdentifier(FString PieceID);
 
 	bool loadedFromSaveGame;
+
 };
 
 template <typename T>
