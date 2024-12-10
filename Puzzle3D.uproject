@@ -10,14 +10,14 @@
 			"LoadingPhase": "Default",
 			"AdditionalDependencies": [
 				"Engine",
-				"CoreUObject"			
+				"CoreUObject"
 			]
 		},
-    		{
-      			"Name": "Puzzle3DEditor",
-      			"Type": "Editor",
-      			"LoadingPhase": "Default"
-    		}
+		{
+			"Name": "Puzzle3DEditor",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
+		}
 	],
 	"Plugins": [
 		{
@@ -36,15 +36,15 @@
 			]
 		},
 		{
-			"Name": "DatasmithFBXImporter",
-			"Enabled": true
-		},
-		{
 			"Name": "WidgetToolsPlugin",
 			"Enabled": false
 		},
 		{
 			"Name": "VictoryBPLibrary",
+			"Enabled": false
+		},
+		{
+			"Name": "DatasmithContent",
 			"Enabled": false
 		}
 	]
