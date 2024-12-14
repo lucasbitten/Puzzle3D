@@ -115,13 +115,20 @@ void UAAU_UpdateModelMeshes::HarvestComponentsAndCreateBlueprint(UBlueprint* Sou
     NewBlueprint->Modify();
     
     //Adding rootNode
-    USCS_Node* RootNode = SCS->CreateNode(USceneComponent::StaticClass(), TEXT("Root"));
+
+    USCS_Node* RootNode = SCS->GetDefaultSceneRootNode();
+    if (!RootNode)
+    {
+        RootNode = SCS->CreateNode(USceneComponent::StaticClass(), TEXT("DefaultRoot"));
+        SCS->AddNode(RootNode);
+    }
+
     SCS->AddNode(RootNode);
 
     USCS_Node* PiecesNode = SCS->CreateNode(USceneComponent::StaticClass(), TEXT("Pieces"));
     USCS_Node* LookAtsNode = SCS->CreateNode(USceneComponent::StaticClass(), TEXT("LookAtSpheres"));
     USCS_Node* ShellsNode = SCS->CreateNode(USceneComponent::StaticClass(), TEXT("Shells"));
-    
+
     RootNode->AddChildNode(PiecesNode);
     RootNode->AddChildNode(LookAtsNode);
     RootNode->AddChildNode(ShellsNode);

@@ -11,6 +11,9 @@
 #include "PuzzlePawn.generated.h"
 
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPieceSelected, UPuzzlePieceParentComponent*, piece);
+
+
 UCLASS()
 class PUZZLE3D_API APuzzlePawn : public APawn
 {
@@ -29,6 +32,9 @@ public:
 	// Called to bind functionality to input
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
+	UPROPERTY(BlueprintAssignable, Category = "Events")
+	FOnPieceSelected OnPieceSelected;
+
 protected:
 
 	// Called when the game starts or when spawned
@@ -39,9 +45,6 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly)
 	UGI_Puzzle* PuzzleGameInstance;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
-	USceneComponent* PiecesBoard;
 
 	UPROPERTY()
 	float CameraMovementSpeed = 300.0f;

@@ -6,12 +6,22 @@
 #include "InnerMesh.h"
 #include "PuzzleSaveGame.h" 
 #include <Kismet/GameplayStatics.h>
+#include "PuzzlePawn.h"
 
 // Sets default values
 APuzzleModel::APuzzleModel()
 {
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
-	PrimaryActorTick.bCanEverTick = false;
+	PrimaryActorTick.bCanEverTick = true;
+
+	if (!RootComponent)
+	{
+		RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("DefaultRoot"));
+	}
+
+	ScreenSidePosition = CreateDefaultSubobject<USceneComponent>(TEXT("ScreenSidePosition"));
+	ScreenSidePosition->SetupAttachment(RootComponent);
+	
 }
 
 
@@ -142,6 +152,10 @@ UPuzzlePieceParentComponent* APuzzleModel::FindPieceByIdentifier(FString PieceID
 void APuzzleModel::BeginPlay()
 {
 	Super::BeginPlay();
+
+	SetTickGroup(TG_PostUpdateWork);
+
+
 	GetComponents(InnerMeshComponents);
 	GetComponents(PuzzlePieceParentComponents);
 	TotalPieces = PuzzlePieceParentComponents.Num() - 1; //Excluding the shell
@@ -158,6 +172,15 @@ void APuzzleModel::BeginPlay()
 		}
 
 	}
+
+	APuzzlePawn* PuzzlePawn = Cast<APuzzlePawn>(UGameplayStatics::GetPlayerPawn(this, 0));
+
+	if (PuzzlePawn)
+	{
+		PuzzlePawn->OnPieceSelected.AddDynamic(this, &APuzzleModel::OnPieceSelected);
+	}
+
+
 	UE_LOG(LogTemp, Log, TEXT("BeginPlay: Loading all pieces for sculpture '%s'."), *GetActorLabel());
 	LoadAllPieces();
 	Explode();
@@ -169,7 +192,37 @@ void APuzzleModel::BeginPlay()
 void APuzzleModel::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+	if (!ScreenSidePosition || !GEngine || !GEngine->GameViewport)
+		return;
+
+	FVector2D ScreenPosition;
+	FVector WorldLocation, WorldDirection;
+
+	const FVector2D ViewportSize = GEngine->GameViewport->Viewport->GetSizeXY();
+	const float HorizontalOffset = 150.0f;
+	ScreenPosition = FVector2D(ViewportSize.X - HorizontalOffset, ViewportSize.Y * 0.5f);
+
+	// Converte a posição da tela para o mundo
+	if (UGameplayStatics::GetPlayerController(this, 0)->DeprojectScreenPositionToWorld(
+		ScreenPosition.X, ScreenPosition.Y, WorldLocation, WorldDirection))
+	{
+		// Calcula a nova posição em relação à câmera
+		FVector CameraLocation = UGameplayStatics::GetPlayerCameraManager(this, 0)->GetCameraLocation();
+		FVector NewPosition = CameraLocation + (WorldDirection * SidePiecesDistanceFromScreen); // Ajusta a distância fixa do lado direito
+
+		// Ajusta a rotação para acompanhar a câmera, mas ignora o pitch (inclinação vertical)
+		FRotator CameraRotation = UGameplayStatics::GetPlayerCameraManager(this, 0)->GetCameraRotation();
+
+		// Atualiza a posição e a rotação
+		ScreenSidePosition->SetWorldLocation(NewPosition);
+		ScreenSidePosition->SetWorldRotation(CameraRotation);
+
+		//DrawDebugSphere(GetWorld(), NewPosition, 10.f, 12, FColor::Green, false, -1.f, 0, 0.5f);
+
+	}
 }
+
 
 TArray<UInnerMesh*> APuzzleModel::GetInnerMeshComponents() const
 {
@@ -279,6 +332,62 @@ void APuzzleModel::Explode()
 	float PiecesByCircle = 360 / DegreeSpaceBetweenPieces;
 	int CircleCount = UKismetMathLibrary::FCeil(PiecesToSendToBoard.Num() / PiecesByCircle);
 	ShuffleArray(PiecesToSendToBoard);
+
+	//MovePiecesToCylinder();
+
+	MovePiecesToScreenSide();
+
+
+	if (PuzzleMode)
+	{
+		PuzzleMode->OnModelExploded.Broadcast();
+	}
+}
+
+void APuzzleModel::MovePiecesToScreenSide()
+{
+	const float ColumnOffset = 3.0f; // Distância lateral entre as colunas
+	const float RowOffset = 5.0f;    // Espaçamento vertical entre as peças
+	const FVector BasePosition = ScreenSidePosition->GetComponentLocation();
+
+	const int32 TotalPiecesOnBoard = PiecesToSendToBoard.Num();
+
+	int rowDirection = 1;
+
+	int32 CurrentIndex = 0;
+	FVector CameraLocation = UGameplayStatics::GetPlayerCameraManager(this, 0)->GetCameraLocation();
+
+	for (USceneComponent* PieceParent : PiecesToSendToBoard)
+	{
+		int32 CurrentRow = CurrentIndex / 2;
+		int32 CurrentColumn = CurrentIndex % 2;
+
+		float ColumnDirection = (CurrentColumn == 0) ? -1.0f : 1.0f; // Esquerda (-1) ou direita (+1)
+		float XOffset = ColumnDirection * ColumnOffset;
+		float ZOffset = CurrentRow * RowOffset * rowDirection;
+
+		if (CurrentColumn == 0)
+		{
+			rowDirection = -rowDirection;
+		}
+		// Calcula a nova posição relativa ao ScreenSidePosition
+		FVector LocalOffset = FVector(0.0f, XOffset, ZOffset); // Y controla as colunas, Z as linhas
+		FVector NewPosition = ScreenSidePosition->GetComponentTransform().TransformPosition(LocalOffset);
+
+		// Atualiza a peça
+		PieceParent->AttachToComponent(ScreenSidePosition, FAttachmentTransformRules::KeepWorldTransform);
+		PieceParent->SetWorldLocation(NewPosition);
+
+		FRotator LookAtRotation = UKismetMathLibrary::FindLookAtRotation(NewPosition, CameraLocation);
+		FRotator AdjustedRotation = LookAtRotation + FRotator(90.0f, 90.0f, 90.0f); // Ajuste X, Y ou Z conforme necessário
+		PieceParent->SetWorldRotation(AdjustedRotation);
+
+		CurrentIndex++;
+	}
+}
+
+void APuzzleModel::MovePiecesToCylinder()
+{
 	int currentCircle = 0;
 	float currentAngle = 0;
 	for (USceneComponent* PieceParent : PiecesToSendToBoard)
@@ -297,12 +406,7 @@ void APuzzleModel::Explode()
 
 		FRotator Rotator = UKismetMathLibrary::FindLookAtRotation(PieceParent->GetComponentLocation(), Shell->GetComponentLocation());
 		PieceParent->SetWorldRotation(Rotator);
-		
-	}
 
-	if (PuzzleMode)
-	{
-		PuzzleMode->OnModelExploded.Broadcast();
 	}
 }
 
@@ -347,6 +451,14 @@ const int APuzzleModel::GetInitialPieces() const
 const float APuzzleModel::GetOffsetDistance() const
 {
 	return OffsetDistance;
+}
+
+void APuzzleModel::OnPieceSelected(UPuzzlePieceParentComponent* piece)
+{
+	if (PiecesToSendToBoard.Contains(piece))
+	{
+		piece->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepWorldTransform);
+	}
 }
 
 void APuzzleModel::OnPiecePlaced(UPuzzlePieceParentComponent* piece)

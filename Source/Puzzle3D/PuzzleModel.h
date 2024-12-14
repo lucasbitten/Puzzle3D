@@ -29,6 +29,14 @@ protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	USceneComponent* ScreenSidePosition;
+
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	float SidePiecesDistanceFromScreen = 150.0f;
+
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
@@ -68,6 +76,10 @@ public:
 	UFUNCTION(BlueprintCallable)
 	const float GetOffsetDistance() const;
 
+	UFUNCTION()
+	void OnPieceSelected(UPuzzlePieceParentComponent* piece);
+
+
 	void OnPiecePlaced(UPuzzlePieceParentComponent* piece);
 
 	UPROPERTY(EditAnywhere, Category = "Piece Movement")
@@ -99,6 +111,10 @@ private:
 	UFUNCTION(BlueprintCallable)
 	void Explode();
 
+	void MovePiecesToScreenSide();
+
+	void MovePiecesToCylinder();
+
 	UFUNCTION(BlueprintCallable)
 	void ResetModel();
 
@@ -128,6 +144,7 @@ private:
 	UPuzzlePieceParentComponent* FindPieceByIdentifier(FString PieceID);
 
 	bool loadedFromSaveGame;
+
 
 };
 

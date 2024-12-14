@@ -221,6 +221,8 @@ void APuzzlePawn::HandlePieceTouched(FHitResult& HitResult)
 				}
 			}
 
+			OnPieceSelected.Broadcast(CurrentPieceComponent);
+
 			if (PuzzleGameInstance && PuzzleGameInstance->ShowHints)
 			{
 				CurrentPieceComponent->GetPieceMesh()->SetMaterial(0, HintMaterial);
