@@ -118,12 +118,24 @@ void UAAU_UpdateModelMeshes::HarvestComponentsAndCreateBlueprint(UBlueprint* Sou
     USCS_Node* RootNode = SCS->CreateNode(USceneComponent::StaticClass(), TEXT("Root"));
     SCS->AddNode(RootNode);
 
+    USCS_Node* PiecesNode = SCS->CreateNode(USceneComponent::StaticClass(), TEXT("Pieces"));
+    USCS_Node* LookAtsNode = SCS->CreateNode(USceneComponent::StaticClass(), TEXT("LookAtSpheres"));
+    USCS_Node* ShellsNode = SCS->CreateNode(USceneComponent::StaticClass(), TEXT("Shells"));
+    
+    RootNode->AddChildNode(PiecesNode);
+    RootNode->AddChildNode(LookAtsNode);
+    RootNode->AddChildNode(ShellsNode);
+
+
+
 
     // Validar o nó raiz padrão
     SCS->ValidateSceneRootNodes();
 
     // Guardar novos nós criados
-    TArray<USCS_Node*> NewNodes;
+    TArray<USCS_Node*> NewShellNodes;
+    TArray<USCS_Node*> NewPiecesNodes;
+    TArray<USCS_Node*> NewLookAtNodes;
 
     int32 count = 0;
     int32 innerMeshCount = 0;
@@ -165,7 +177,7 @@ void UAAU_UpdateModelMeshes::HarvestComponentsAndCreateBlueprint(UBlueprint* Sou
             NewInnerMesh->SetRelativeLocation(Location);
             NewInnerMesh->SetRelativeRotation(Rotation);
             NewInnerMesh->SetRelativeScale3D(Scale);
-            NewNodes.Add(NewNode);
+            NewLookAtNodes.Add(NewNode);
 
         }
         else
@@ -223,7 +235,7 @@ void UAAU_UpdateModelMeshes::HarvestComponentsAndCreateBlueprint(UBlueprint* Sou
 
                     }
 
-                    NewNodes.Add(NewShellParentNode);
+                    NewShellNodes.Add(NewShellParentNode);
                 }
 
  
@@ -317,7 +329,7 @@ void UAAU_UpdateModelMeshes::HarvestComponentsAndCreateBlueprint(UBlueprint* Sou
                     }
 
                     // Adicionar o novo nó à lista temporária
-                    NewNodes.Add(NewSceneNode);
+                    NewPiecesNodes.Add(NewSceneNode);
                 }
                 count++;
             }
@@ -365,7 +377,7 @@ void UAAU_UpdateModelMeshes::HarvestComponentsAndCreateBlueprint(UBlueprint* Sou
                         }
                     }
 
-                    NewNodes.Add(NewShellParentNode);
+                    NewShellNodes.Add(NewShellParentNode);
                 }
 
 
@@ -381,8 +393,19 @@ void UAAU_UpdateModelMeshes::HarvestComponentsAndCreateBlueprint(UBlueprint* Sou
 
                 CompletedModelMesh->SetRelativeLocation(StaticMeshComponent->GetRelativeLocation());
                 CompletedModelMesh->SetRelativeRotation(StaticMeshComponent->GetRelativeRotation());
-                CompletedModelMesh->SetWorldScale3D(StaticMeshComponent->GetComponentScale());
+                CompletedModelMesh->SetRelativeScale3D(StaticMeshComponent->GetRelativeScale3D());
+            }
+            else if (label.Contains(TEXT("outlines")))
+            {
+                FString OutlineName = FString::Printf(TEXT("Outline"));
+                USCS_Node* OutlineNode = SCS->CreateNode(UStaticMeshComponent::StaticClass(), *OutlineName);
+                UStaticMeshComponent* OutlineMesh = Cast<UStaticMeshComponent>(OutlineNode->ComponentTemplate);
+                OutlineMesh->SetStaticMesh(StaticMeshComponent->GetStaticMesh());
+                SCS->AddNode(OutlineNode);
 
+                OutlineMesh->SetRelativeLocation(StaticMeshComponent->GetRelativeLocation());
+                OutlineMesh->SetRelativeRotation(StaticMeshComponent->GetRelativeRotation());
+                OutlineMesh->SetWorldScale3D(StaticMeshComponent->GetComponentScale());
             }
 
         }
@@ -392,9 +415,19 @@ void UAAU_UpdateModelMeshes::HarvestComponentsAndCreateBlueprint(UBlueprint* Sou
     }
 
     // Adicionar os novos nós à Blueprint
-    for (USCS_Node* NewNode : NewNodes)
+    for (USCS_Node* NewNode : NewShellNodes)
     {
-        SCS->AddNode(NewNode);
+        ShellsNode->AddChildNode(NewNode);
+    }
+
+    for (USCS_Node* NewNode : NewPiecesNodes)
+    {
+        PiecesNode->AddChildNode(NewNode);
+    }
+
+    for (USCS_Node* NewNode : NewLookAtNodes)
+    {
+        LookAtsNode->AddChildNode(NewNode);
     }
 
     // Compilar e salvar a Blueprint

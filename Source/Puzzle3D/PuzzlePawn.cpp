@@ -154,6 +154,9 @@ void APuzzlePawn::HandleOnWorldPress()
 
 			if (GetWorld()->LineTraceSingleByChannel(HitResult, RayStart, RayEnd, ECC_GameTraceChannel1, Params))
 			{
+				//DrawDebugLine(GetWorld(), RayStart, HitResult.ImpactPoint, FColor::Green, false, 5.0f, 0, 1.0f);
+				//DrawDebugPoint(GetWorld(), HitResult.ImpactPoint, 10.0f, FColor::Red, false, 5.0f);
+
 				HandlePieceTouched(HitResult);
 
 				if (CurrentPieceComponent)
@@ -183,7 +186,11 @@ void APuzzlePawn::HandleOnWorldPress()
 				}
 
 			}
+			else
+			{
+				//DrawDebugLine(GetWorld(), RayStart, RayEnd, FColor::Blue, false, 5.0f, 0, 1.0f);
 
+			}
 		}
 	}
 }
