@@ -159,6 +159,9 @@ void APuzzleModel::BeginPlay()
 	GetComponents(InnerMeshComponents);
 	GetComponents(PuzzlePieceParentComponents);
 	TotalPieces = PuzzlePieceParentComponents.Num() - 1; //Excluding the shell
+	
+	//InitializeAlwaysOnTopMaterials();
+
 	SetupModel();
 
 	AGameModeBase* GameModeBase = GetWorld()->GetAuthGameMode();
@@ -188,6 +191,65 @@ void APuzzleModel::BeginPlay()
 	SaveAllPieces();
 }
 
+void APuzzleModel::InitializeAlwaysOnTopMaterials()
+{
+	//if (PuzzlePieceParentComponents.Num() == 0)
+	//{
+	//	return;
+	//}
+
+	//UStaticMeshComponent* Piece = PuzzlePieceParentComponents[0]->GetPieceMesh();
+	//
+	//int32 NumMaterials = Piece->GetNumMaterials();
+
+	//for (int32 Index = 0; Index < NumMaterials; ++Index)
+	//{
+	//	UMaterialInterface* OriginalMaterial = Piece->GetMaterial(Index);
+
+	//	if (OriginalMaterial && !PieceAlwaysOnTopMaterials.Contains(OriginalMaterial))
+	//	{
+	//		// Cria uma instância dinâmica para "sempre na frente"
+	//		UMaterialInstanceDynamic* AlwaysOnTopMaterial = UMaterialInstanceDynamic::Create(OriginalMaterial, this);
+
+	//		if (AlwaysOnTopMaterial)
+	//		{
+	//			// Configura o material para ignorar o Depth Test
+	//			AlwaysOnTopMaterial->SetScalarParameterValue(TEXT("DisableDepthTest"), 1.0f);
+
+	//			// Armazena no mapa
+	//			PieceAlwaysOnTopMaterials.Add(OriginalMaterial, AlwaysOnTopMaterial);
+	//		}
+	//	}
+	//}
+}
+
+void APuzzleModel::SetPieceMaterial(UStaticMeshComponent* Piece, bool bAlwaysOnTop)
+{
+	int32 NumMaterials = Piece->GetNumMaterials();
+
+	for (int32 Index = 0; Index < NumMaterials; ++Index)
+	{
+		if (bAlwaysOnTop)
+		{
+			// Usa o material "sempre na frente", se estiver configurado
+			if (Index < PieceAlwaysOnTopMaterials.Num() && PieceAlwaysOnTopMaterials[Index])
+			{
+				Piece->SetMaterial(Index, PieceAlwaysOnTopMaterials[Index]);
+			}
+		}
+		else
+		{
+			// Restaura o material padrão
+			if (Index < PieceDefaultMaterials.Num() && PieceDefaultMaterials[Index])
+			{
+				Piece->SetMaterial(Index, PieceDefaultMaterials[Index]);
+			}
+		}
+	}
+}
+
+
+
 // Called every frame
 void APuzzleModel::Tick(float DeltaTime)
 {
@@ -196,6 +258,12 @@ void APuzzleModel::Tick(float DeltaTime)
 	if (!ScreenSidePosition || !GEngine || !GEngine->GameViewport)
 		return;
 
+	SetScreenSidePosition();
+}
+
+
+void APuzzleModel::SetScreenSidePosition()
+{
 	FVector2D ScreenPosition;
 	FVector WorldLocation, WorldDirection;
 
@@ -203,13 +271,26 @@ void APuzzleModel::Tick(float DeltaTime)
 	const float HorizontalOffset = 150.0f;
 	ScreenPosition = FVector2D(ViewportSize.X - HorizontalOffset, ViewportSize.Y * 0.5f);
 
+	APlayerCameraManager* CameraManager = UGameplayStatics::GetPlayerCameraManager(this, 0);
+	if (!CameraManager)
+		return;
+
+	float CurrentFOV = CameraManager->GetFOVAngle(); // Obtém o FOV atual
+
+	// Calcular a distância ajustada com base no FOV
+	// Hipotenusa da trigonometria: distância da câmera ao ScreenSidePosition
+	float FOVRadians = FMath::DegreesToRadians(CurrentFOV * 0.5f);
+	float AdjustedDistance = ViewportSize.X / (2.0f * FMath::Tan(FOVRadians)); // Relação entre tamanho do viewport e FOV
+	AdjustedDistance *= SidePiecesDistanceFromScreen;
+
+
 	// Converte a posição da tela para o mundo
 	if (UGameplayStatics::GetPlayerController(this, 0)->DeprojectScreenPositionToWorld(
 		ScreenPosition.X, ScreenPosition.Y, WorldLocation, WorldDirection))
 	{
 		// Calcula a nova posição em relação à câmera
 		FVector CameraLocation = UGameplayStatics::GetPlayerCameraManager(this, 0)->GetCameraLocation();
-		FVector NewPosition = CameraLocation + (WorldDirection * SidePiecesDistanceFromScreen); // Ajusta a distância fixa do lado direito
+		FVector NewPosition = CameraLocation + (WorldDirection * AdjustedDistance); // Ajusta a distância fixa do lado direito
 
 		// Ajusta a rotação para acompanhar a câmera, mas ignora o pitch (inclinação vertical)
 		FRotator CameraRotation = UGameplayStatics::GetPlayerCameraManager(this, 0)->GetCameraRotation();
@@ -229,7 +310,7 @@ TArray<UInnerMesh*> APuzzleModel::GetInnerMeshComponents() const
 	return InnerMeshComponents;
 }
 
-TArray<USceneComponent*> APuzzleModel::GetPiecesToSendToBoard() const
+TArray<UPuzzlePieceParentComponent*> APuzzleModel::GetPiecesToSendToBoard() const
 {
 	return PiecesToSendToBoard;
 }
@@ -357,7 +438,7 @@ void APuzzleModel::MovePiecesToScreenSide()
 	int32 CurrentIndex = 0;
 	FVector CameraLocation = UGameplayStatics::GetPlayerCameraManager(this, 0)->GetCameraLocation();
 
-	for (USceneComponent* PieceParent : PiecesToSendToBoard)
+	for (UPuzzlePieceParentComponent* PieceParent : PiecesToSendToBoard)
 	{
 		int32 CurrentRow = CurrentIndex / 2;
 		int32 CurrentColumn = CurrentIndex % 2;
@@ -379,8 +460,17 @@ void APuzzleModel::MovePiecesToScreenSide()
 		PieceParent->SetWorldLocation(NewPosition);
 
 		FRotator LookAtRotation = UKismetMathLibrary::FindLookAtRotation(NewPosition, CameraLocation);
-		FRotator AdjustedRotation = LookAtRotation + FRotator(90.0f, 90.0f, 90.0f); // Ajuste X, Y ou Z conforme necessário
+		FRotator BaseRotation = FRotator(90.0f, 90.0f, 90.0f);
+
+		if (CurrentColumn == 0)
+		{
+			BaseRotation += FRotator(0.0f, 180.0f, 0.0f);
+		}
+		FRotator AdjustedRotation = LookAtRotation + BaseRotation;
+
 		PieceParent->SetWorldRotation(AdjustedRotation);
+
+		SetPieceMaterial(PieceParent->GetPieceMesh(), true);
 
 		CurrentIndex++;
 	}
@@ -458,6 +548,8 @@ void APuzzleModel::OnPieceSelected(UPuzzlePieceParentComponent* piece)
 	if (PiecesToSendToBoard.Contains(piece))
 	{
 		piece->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepWorldTransform);
+		SetPieceMaterial(piece->GetPieceMesh(), false);
+
 	}
 }
 

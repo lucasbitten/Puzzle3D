@@ -34,18 +34,19 @@ protected:
 	USceneComponent* ScreenSidePosition;
 
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
-	float SidePiecesDistanceFromScreen = 150.0f;
+	UPROPERTY(EditAnywhere, Category = "Components")
+	float SidePiecesDistanceFromScreen = 0.1f;
 
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
+
 	UFUNCTION(BlueprintCallable, Category = "Mesh Groups")
 	TArray<UInnerMesh*> GetInnerMeshComponents() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Board")
-	TArray<USceneComponent*> GetPiecesToSendToBoard() const;
+	TArray<UPuzzlePieceParentComponent*> GetPiecesToSendToBoard() const;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Explosion")
 	float DegreeSpaceBetweenPieces = 10;
@@ -106,6 +107,20 @@ public:
 
 private:
 
+	UPROPERTY(EditAnywhere,Category = "Materials")
+	TArray<UMaterialInterface*> PieceAlwaysOnTopMaterials;
+	UPROPERTY(EditAnywhere, Category = "Materials")
+	TArray<UMaterialInterface*> PieceDefaultMaterials;
+
+
+	void InitializeAlwaysOnTopMaterials();
+
+	void SetPieceMaterial(UStaticMeshComponent* Piece, bool bAlwaysOnTop);
+
+
+	void SetScreenSidePosition();
+
+
 	void SetupModel();
 
 	UFUNCTION(BlueprintCallable)
@@ -127,7 +142,7 @@ private:
 
 	TArray<UInnerMesh*> InnerMeshComponents;
 
-	TArray<USceneComponent*> PiecesToSendToBoard;
+	TArray<UPuzzlePieceParentComponent*> PiecesToSendToBoard;
 
 	int TotalPieces;
 
