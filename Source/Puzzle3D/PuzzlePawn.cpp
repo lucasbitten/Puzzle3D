@@ -2,6 +2,7 @@
 
 #include "PuzzlePawn.h"
 #include "Camera/CameraComponent.h"
+#include "Kismet/GameplayStatics.h"
 
 // Sets default values
 APuzzlePawn::APuzzlePawn()
@@ -63,6 +64,7 @@ void APuzzlePawn::OnLeftMouseButtonReleased()
 
 			CurrentPieceComponent->SetIsLocked(true);
 
+		
 		}
 		else
 		{
