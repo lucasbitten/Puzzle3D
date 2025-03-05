@@ -300,6 +300,8 @@ void UPuzzlePieceParentComponent::InitializeLerpToCorrectPositionTimeline()
 {
     if (LerpCurve)
     {
+        PuzzleModel->PlayFittingSound();
+
         IsLerpingToCorrectPosition = true;
 
         LerpStartPosition = GetParentInitialWorldPositionWithOffset();

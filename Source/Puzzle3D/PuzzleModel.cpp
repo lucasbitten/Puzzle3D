@@ -191,6 +191,11 @@ void APuzzleModel::BeginPlay()
 	SaveAllPieces();
 }
 
+void APuzzleModel::PlayFittingSound() const
+{
+	UGameplayStatics::PlaySound2D(this, Fitting);
+}
+
 void APuzzleModel::InitializeAlwaysOnTopMaterials()
 {
 	//if (PuzzlePieceParentComponents.Num() == 0)
@@ -469,6 +474,7 @@ void APuzzleModel::MovePiecesToScreenSide()
 		FRotator AdjustedRotation = LookAtRotation + BaseRotation;
 
 		PieceParent->SetWorldRotation(AdjustedRotation);
+		PieceParent->SetWorldScale3D(PieceParent->GetComponentScale() * PiecesScaleFactor);
 
 		SetPieceMaterial(PieceParent->GetPieceMesh(), true);
 
@@ -548,6 +554,7 @@ void APuzzleModel::OnPieceSelected(UPuzzlePieceParentComponent* piece)
 	if (PiecesToSendToBoard.Contains(piece))
 	{
 		piece->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepWorldTransform);
+		piece->SetWorldScale3D(FVector::One());
 		SetPieceMaterial(piece->GetPieceMesh(), false);
 
 	}
@@ -556,6 +563,7 @@ void APuzzleModel::OnPieceSelected(UPuzzlePieceParentComponent* piece)
 void APuzzleModel::OnPiecePlaced(UPuzzlePieceParentComponent* piece)
 {
 	CorrectPiecesPlaced++;
+
 	OnPiecePlacedEvent.Broadcast();
 	SavePiece(piece->GetIdentifier(), true);
 }

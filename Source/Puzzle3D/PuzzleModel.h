@@ -61,6 +61,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Explosion")
 	int32 InitialPieces = 50;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Explosion")
+	float PiecesScaleFactor = 1;
+
 
 	UFUNCTION(BlueprintCallable)
 	const int GetTotalPieces() const;
@@ -104,6 +107,11 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Events")
 	FOnPiecePlaced OnPiecePlacedEvent;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio")
+	USoundBase* Fitting;
+
+
+	void PlayFittingSound() const;
 
 private:
 
