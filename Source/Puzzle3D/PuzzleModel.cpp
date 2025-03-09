@@ -231,7 +231,6 @@ void APuzzleModel::InitializeAlwaysOnTopMaterials()
 void APuzzleModel::SetPieceMaterial(UStaticMeshComponent* Piece, bool bAlwaysOnTop)
 {
 
-	Piece->SetCastShadow(false);
 	if (bAlwaysOnTop)
 	{
 		Piece->SetMaterial(1, UnlitMaterial);
@@ -239,8 +238,6 @@ void APuzzleModel::SetPieceMaterial(UStaticMeshComponent* Piece, bool bAlwaysOnT
 	else {
 		Piece->SetMaterial(1, LitMaterial);	
 	}
-
-	UE_LOG(LogTemp, Log, TEXT("Set Piece Material of Piece '%s' '%s'"), *Piece->GetStaticMesh()->GetFullName(), *FString((bAlwaysOnTop) ? TEXT("Unlit") : TEXT("Lit")));
 
 	//OLD logic 
 	/*
@@ -617,7 +614,7 @@ void APuzzleModel::OnPiecePlaced(UPuzzlePieceParentComponent* piece)
 			-1,                      // Unique message key
 			5.0f,                    // Duration in seconds
 			FColor::Green,            // Text color
-			FString::Printf(TEXT("Placed %s"), *piece->GetFullName())  // Corrected format
+			FString::Printf(TEXT("Placed %s"), *piece->GetIdentifier())  // Corrected format
 		);
 	}
 
@@ -631,7 +628,7 @@ void APuzzleModel::OnPieceDropped(UPuzzlePieceParentComponent* piece)
 			-1,                      // Unique message key
 			5.0f,                    // Duration in seconds
 			FColor::Yellow,            // Text color
-			FString::Printf(TEXT("Dropped %s"), *piece->GetFullName())  // Corrected format
+			FString::Printf(TEXT("Dropped %s"), *piece->GetIdentifier())  // Corrected format
 		);
 	}
 
