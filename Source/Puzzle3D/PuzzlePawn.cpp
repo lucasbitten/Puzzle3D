@@ -68,7 +68,9 @@ void APuzzlePawn::OnLeftMouseButtonReleased()
 		}
 		else
 		{
+
 			DeselectPieceComponent();
+			CurrentPieceComponent->OnReleasedIncorrectPiece();
 			CurrentPieceComponent->StopLerpCloseToCameraTimeline();
 			CurrentPieceComponent = nullptr;
 			CanMovePiece = true;
@@ -222,6 +224,17 @@ void APuzzlePawn::HandlePieceTouched(FHitResult& HitResult)
 					UE_LOG(LogTemp, Warning, TEXT("Could not find a material to assign to OriginalMaterial"));
 				}
 			}
+
+			if (GEngine)
+			{
+				GEngine->AddOnScreenDebugMessage(
+					-1,                      // Unique message key
+					5.0f,                    // Duration in seconds
+					FColor::Cyan,            // Text color
+					FString::Printf(TEXT("OnPieceSelected %s"), *CurrentPieceComponent->GetFullName())  // Corrected format
+				);
+			}
+
 
 			OnPieceSelected.Broadcast(CurrentPieceComponent);
 

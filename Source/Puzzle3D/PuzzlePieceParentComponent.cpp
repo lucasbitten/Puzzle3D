@@ -364,6 +364,14 @@ void UPuzzlePieceParentComponent::OnLerpToCorrectPositionTimelineFinished()
     }
 }
 
+void UPuzzlePieceParentComponent::OnReleasedIncorrectPiece()
+{
+    if (PuzzleModel)
+    {
+        PuzzleModel->OnPieceDropped(this);
+    }
+}
+
 
 FVector UPuzzlePieceParentComponent::CalculatePositionOutsideModel()
 {

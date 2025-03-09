@@ -83,8 +83,14 @@ public:
 	UFUNCTION()
 	void OnPieceSelected(UPuzzlePieceParentComponent* piece);
 
-
+	UFUNCTION()
 	void OnPiecePlaced(UPuzzlePieceParentComponent* piece);
+
+	UFUNCTION()
+	void OnPieceDropped(UPuzzlePieceParentComponent* piece);
+
+	UFUNCTION()
+	void MovePiecesToScreenSide();
 
 	UPROPERTY(EditAnywhere, Category = "Piece Movement")
 	bool ShowDebug;
@@ -111,6 +117,7 @@ public:
 	USoundBase* Fitting;
 
 
+
 	void PlayFittingSound() const;
 
 private:
@@ -120,6 +127,11 @@ private:
 	UPROPERTY(EditAnywhere, Category = "Materials")
 	TArray<UMaterialInterface*> PieceDefaultMaterials;
 
+	UPROPERTY(EditAnywhere, Category = "Materials")
+	UMaterialInterface* LitMaterial;
+
+	UPROPERTY(EditAnywhere, Category = "Materials")
+	UMaterialInterface* UnlitMaterial;
 
 	void InitializeAlwaysOnTopMaterials();
 
@@ -133,8 +145,6 @@ private:
 
 	UFUNCTION(BlueprintCallable)
 	void Explode();
-
-	void MovePiecesToScreenSide();
 
 	void MovePiecesToCylinder();
 
@@ -151,6 +161,8 @@ private:
 	TArray<UInnerMesh*> InnerMeshComponents;
 
 	TArray<UPuzzlePieceParentComponent*> PiecesToSendToBoard;
+
+	TArray<UPuzzlePieceParentComponent*> PiecesInBoard;
 
 	int TotalPieces;
 

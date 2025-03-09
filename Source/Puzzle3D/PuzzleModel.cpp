@@ -230,8 +230,21 @@ void APuzzleModel::InitializeAlwaysOnTopMaterials()
 
 void APuzzleModel::SetPieceMaterial(UStaticMeshComponent* Piece, bool bAlwaysOnTop)
 {
-	int32 NumMaterials = Piece->GetNumMaterials();
 
+	Piece->SetCastShadow(false);
+	if (bAlwaysOnTop)
+	{
+		Piece->SetMaterial(1, UnlitMaterial);
+	}
+	else {
+		Piece->SetMaterial(1, LitMaterial);	
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("Set Piece Material of Piece '%s' '%s'"), *Piece->GetStaticMesh()->GetFullName(), *FString((bAlwaysOnTop) ? TEXT("Unlit") : TEXT("Lit")));
+
+	//OLD logic 
+	/*
+	int32 NumMaterials = Piece->GetNumMaterials();
 	for (int32 Index = 0; Index < NumMaterials; ++Index)
 	{
 		if (bAlwaysOnTop)
@@ -250,7 +263,7 @@ void APuzzleModel::SetPieceMaterial(UStaticMeshComponent* Piece, bool bAlwaysOnT
 				Piece->SetMaterial(Index, PieceDefaultMaterials[Index]);
 			}
 		}
-	}
+	}*/
 }
 
 
@@ -370,12 +383,12 @@ void APuzzleModel::SetupModel()
 
 void APuzzleModel::Explode()
 {
+
 	if (Shell == nullptr)
 	{
 		UE_LOG(LogTemp, Error, TEXT("Shell is null!"));
 		return;
 	}
-
 
 	auto ActorPos = GetActorLocation();
 	int skippedPieces = 0;
@@ -396,7 +409,7 @@ void APuzzleModel::Explode()
 
 			PuzzlePiece->SetCanLockPieces(CanLockPieces);
 
-			if ((!loadedFromSaveGame && skippedPieces < InitialPieces || PuzzlePiece->GetIsLocked()))
+			if ( (!loadedFromSaveGame && skippedPieces < InitialPieces) || (PuzzlePiece->GetIsLocked()) )
 			{
 				skippedPieces++;
 				PuzzlePiece->SetIsLocked(true);
@@ -405,15 +418,20 @@ void APuzzleModel::Explode()
 				PuzzlePiece->SetWorldLocation(PuzzlePiece->GetParentInitialWorldPosition());
 				PuzzlePiece->SetWorldRotation(PuzzlePiece->GetParentInitialWorldRotator());
 				CorrectPiecesPlaced++;
-				continue;
+				SetPieceMaterial(PuzzlePiece->GetPieceMesh(), false);
+			}
+			else {
+				PuzzlePiece->SetIsLocked(false);
+				PuzzlePiece->SetIsOnBoard(true);
+				PiecesToSendToBoard.Add(PuzzlePiece);
+				SetPieceMaterial(PuzzlePiece->GetPieceMesh(), true);
 			}
 
-			PuzzlePiece->SetIsLocked(false);
-			PuzzlePiece->SetIsOnBoard(true);
-			PiecesToSendToBoard.Add(PuzzlePiece);
 
 		}
 	}
+
+	PiecesInBoard = PiecesToSendToBoard;
 
 	float PiecesByCircle = 360 / DegreeSpaceBetweenPieces;
 	int CircleCount = UKismetMathLibrary::FCeil(PiecesToSendToBoard.Num() / PiecesByCircle);
@@ -430,20 +448,23 @@ void APuzzleModel::Explode()
 	}
 }
 
+
 void APuzzleModel::MovePiecesToScreenSide()
 {
+
 	const float ColumnOffset = 3.0f; // Distância lateral entre as colunas
 	const float RowOffset = 5.0f;    // Espaçamento vertical entre as peças
+	
 	const FVector BasePosition = ScreenSidePosition->GetComponentLocation();
 
-	const int32 TotalPiecesOnBoard = PiecesToSendToBoard.Num();
+	const int32 TotalPiecesOnBoard = PiecesInBoard.Num();
 
 	int rowDirection = 1;
 
 	int32 CurrentIndex = 0;
 	FVector CameraLocation = UGameplayStatics::GetPlayerCameraManager(this, 0)->GetCameraLocation();
 
-	for (UPuzzlePieceParentComponent* PieceParent : PiecesToSendToBoard)
+	for (UPuzzlePieceParentComponent* PieceParent : PiecesInBoard)
 	{
 		int32 CurrentRow = CurrentIndex / 2;
 		int32 CurrentColumn = CurrentIndex % 2;
@@ -456,31 +477,44 @@ void APuzzleModel::MovePiecesToScreenSide()
 		{
 			rowDirection = -rowDirection;
 		}
-		// Calcula a nova posição relativa ao ScreenSidePosition
+
+		// Calculates the new position relative to the ScreenSidePosition
 		FVector LocalOffset = FVector(0.0f, XOffset, ZOffset); // Y controla as colunas, Z as linhas
 		FVector NewPosition = ScreenSidePosition->GetComponentTransform().TransformPosition(LocalOffset);
 
-		// Atualiza a peça
+		// Updates the piece parent
 		PieceParent->AttachToComponent(ScreenSidePosition, FAttachmentTransformRules::KeepWorldTransform);
 		PieceParent->SetWorldLocation(NewPosition);
 
 		FRotator LookAtRotation = UKismetMathLibrary::FindLookAtRotation(NewPosition, CameraLocation);
+
 		FRotator BaseRotation = FRotator(90.0f, 90.0f, 90.0f);
 
 		if (CurrentColumn == 0)
 		{
 			BaseRotation += FRotator(0.0f, 180.0f, 0.0f);
 		}
+		
 		FRotator AdjustedRotation = LookAtRotation + BaseRotation;
 
 		PieceParent->SetWorldRotation(AdjustedRotation);
 		PieceParent->SetWorldScale3D(PieceParent->GetComponentScale() * PiecesScaleFactor);
 
-		SetPieceMaterial(PieceParent->GetPieceMesh(), true);
+		if (CurrentIndex == 0)
+		{
+			UE_LOG(LogTemp, Log, TEXT("Piece Location: %s"), *PieceParent->GetComponentLocation().ToString());
+			UE_LOG(LogTemp, Log, TEXT("Piece Rotation: %s"), *PieceParent->GetComponentRotation().ToString());
+		}
 
 		CurrentIndex++;
+
+		
+
 	}
+
 }
+
+
 
 void APuzzleModel::MovePiecesToCylinder()
 {
@@ -551,12 +585,10 @@ const float APuzzleModel::GetOffsetDistance() const
 
 void APuzzleModel::OnPieceSelected(UPuzzlePieceParentComponent* piece)
 {
-	if (PiecesToSendToBoard.Contains(piece))
+	if (PiecesInBoard.Contains(piece))
 	{
 		piece->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepWorldTransform);
 		piece->SetWorldScale3D(FVector::One());
-		SetPieceMaterial(piece->GetPieceMesh(), false);
-
 	}
 }
 
@@ -565,8 +597,38 @@ void APuzzleModel::OnPiecePlaced(UPuzzlePieceParentComponent* piece)
 	CorrectPiecesPlaced++;
 
 	OnPiecePlacedEvent.Broadcast();
+	PiecesInBoard.Remove(piece);
 	SavePiece(piece->GetIdentifier(), true);
+	SetPieceMaterial(piece->GetPieceMesh(), false);
+
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(
+			-1,                      // Unique message key
+			5.0f,                    // Duration in seconds
+			FColor::Green,            // Text color
+			FString::Printf(TEXT("Placed %s"), *piece->GetFullName())  // Corrected format
+		);
+	}
+
 }
+
+void APuzzleModel::OnPieceDropped(UPuzzlePieceParentComponent* piece)
+{
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(
+			-1,                      // Unique message key
+			5.0f,                    // Duration in seconds
+			FColor::Yellow,            // Text color
+			FString::Printf(TEXT("Dropped %s"), *piece->GetFullName())  // Corrected format
+		);
+	}
+
+
+	MovePiecesToScreenSide();
+}
+
 
 const void APuzzleModel::SetInitialPieces(int32 pieces)
 {

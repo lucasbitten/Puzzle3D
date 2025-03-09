@@ -88,6 +88,9 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void RestorePieceInitialRelativeRotation();
 
+	UFUNCTION()
+	void OnReleasedIncorrectPiece();
+
 
 private:
 
@@ -189,6 +192,7 @@ private:
 
 	UFUNCTION()
 	void OnLerpToCorrectPositionTimelineFinished();
+
 
 
 #pragma endregion
