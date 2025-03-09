@@ -439,7 +439,7 @@ void APuzzleModel::Explode()
 
 	//MovePiecesToCylinder();
 
-	MovePiecesToScreenSide();
+	MovePiecesToScreenSide(true);
 
 
 	if (PuzzleMode)
@@ -449,7 +449,7 @@ void APuzzleModel::Explode()
 }
 
 
-void APuzzleModel::MovePiecesToScreenSide()
+void APuzzleModel::MovePiecesToScreenSide(bool firstTime = false)
 {
 
 	const float ColumnOffset = 3.0f; // Distância lateral entre as colunas
@@ -486,18 +486,28 @@ void APuzzleModel::MovePiecesToScreenSide()
 		PieceParent->AttachToComponent(ScreenSidePosition, FAttachmentTransformRules::KeepWorldTransform);
 		PieceParent->SetWorldLocation(NewPosition);
 
-		FRotator LookAtRotation = UKismetMathLibrary::FindLookAtRotation(NewPosition, CameraLocation);
-
-		FRotator BaseRotation = FRotator(90.0f, 90.0f, 90.0f);
-
-		if (CurrentColumn == 0)
+		if (firstTime)
 		{
-			BaseRotation += FRotator(0.0f, 180.0f, 0.0f);
+			FRotator LookAtRotation = UKismetMathLibrary::FindLookAtRotation(NewPosition, CameraLocation);
+
+			FRotator BaseRotation = FRotator(90.0f, 90.0f, 90.0f);
+
+			if (CurrentColumn == 0)
+			{
+				BaseRotation += FRotator(0.0f, 180.0f, 0.0f);
+			}
+
+			FRotator AdjustedRotation = LookAtRotation + BaseRotation;
+
+			PieceParent->SetWorldRotation(AdjustedRotation);
+		}
+		else {
+
+			FRotator AdjustedRotation = FRotator(0.0f, 0.0f, 90.0f);
+			PieceParent->SetRelativeRotation(AdjustedRotation);
+	
 		}
 		
-		FRotator AdjustedRotation = LookAtRotation + BaseRotation;
-
-		PieceParent->SetWorldRotation(AdjustedRotation);
 		PieceParent->SetWorldScale3D(PieceParent->GetComponentScale() * PiecesScaleFactor);
 
 		if (CurrentIndex == 0)
