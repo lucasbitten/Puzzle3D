@@ -57,13 +57,36 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Explosion")
 	float ExplosionRadius = 100;
 
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Explosion")
 	int32 InitialPieces = 50;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Explosion")
 	float PiecesScaleFactor = 1;
 
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera Movement")
+	float MaxCameraZoom = 400;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera Movement")
+	float MinCameraZoom = 95;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera Movement")
+	float MaxZoomOffset = 25;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera Movement")
+	float ArmLengthIncrement = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera Movement")
+	float DesiredArmLength = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera Movement")
+	float CameraInterpSpeed = 100;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera Movement")
+	float CameraZoomSpeed = 50;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera Movement")
+	float CameraZSpeed  = 2;
 
 	UFUNCTION(BlueprintCallable)
 	const int GetTotalPieces() const;
