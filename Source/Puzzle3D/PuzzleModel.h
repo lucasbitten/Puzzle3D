@@ -4,6 +4,7 @@
 
 #include "GM_PuzzleMode.h"
 #include "CoreMinimal.h"
+#include "Engine/StaticMeshActor.h"
 #include "GameFramework/Actor.h"
 #include "PuzzlePiecesComponent.h"
 #include "PuzzlePieceParentComponent.h"
@@ -13,7 +14,6 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnPiecePlaced);
 
 
 class UInnerMesh;
-
 
 
 UCLASS()
@@ -38,6 +38,18 @@ protected:
 	float SidePiecesDistanceFromScreen = 0.1f;
 
 public:	
+
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Base")
+	EBaseType BaseType;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Puzzle")
+	AStaticMeshActor* SpawnedBaseActor;
+
+	void SpawnBase();
+
+	void GetPuzzleGameMode();
+
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
@@ -65,10 +77,10 @@ public:
 
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera Movement")
-	float MaxCameraZoom = 400;
+	float MaxCameraDistance = 400;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera Movement")
-	float MinCameraZoom = 95;
+	float MinCameraDistance = 95;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera Movement")
 	float MaxZoomOffset = 25;
@@ -98,7 +110,7 @@ public:
 	const int GetInitialPieces() const;
 
 	UFUNCTION(BlueprintCallable)
-	const void SetInitialPieces(int32 pieces);
+	void SetInitialPieces(int32 pieces);
 
 	UFUNCTION(BlueprintCallable)
 	const float GetOffsetDistance() const;
@@ -143,8 +155,6 @@ private:
 	UPROPERTY(EditAnywhere, Category = "Materials")
 	TArray<UMaterialInterface*> PieceDefaultMaterials;
 
-
-	void InitializeAlwaysOnTopMaterials();
 
 	void SetPieceMaterial(UStaticMeshComponent* Piece, bool bAlwaysOnTop);
 
