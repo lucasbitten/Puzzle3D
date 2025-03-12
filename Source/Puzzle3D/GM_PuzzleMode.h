@@ -10,6 +10,18 @@
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnModelLoadedEnded);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnModelExplodedEnded);
 
+
+
+UENUM(BlueprintType)
+enum class EBaseType : uint8
+{
+	EBase_Invalid   UMETA(DisplayName = "Invalid"),
+	EBase_None		UMETA(DisplayName = "None"),
+	EBase_Basic		UMETA(DisplayName = "Basic"),
+	EBase_Classic	UMETA(DisplayName = "Classic"),
+};
+
+
 /**
  * 
  */
@@ -25,5 +37,9 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "Events")
 	FOnModelExplodedEnded OnModelExploded;
+
+	UPROPERTY(EditAnywhere, Category = "Mesh Mapping")
+	TMap<EBaseType, UStaticMesh*> BaseMeshes;
+
 	
 };
