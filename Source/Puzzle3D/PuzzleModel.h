@@ -4,6 +4,7 @@
 
 #include "GM_PuzzleMode.h"
 #include "CoreMinimal.h"
+#include "Engine/StaticMeshActor.h"
 #include "GameFramework/Actor.h"
 #include "PuzzlePiecesComponent.h"
 #include "PuzzlePieceParentComponent.h"
@@ -13,7 +14,6 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnPiecePlaced);
 
 
 class UInnerMesh;
-
 
 
 UCLASS()
@@ -38,6 +38,18 @@ protected:
 	float SidePiecesDistanceFromScreen = 0.1f;
 
 public:	
+
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Base")
+	EBaseType BaseType;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Puzzle")
+	AStaticMeshActor* SpawnedBaseActor;
+
+	void SpawnBase();
+
+	void GetPuzzleGameMode();
+
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
@@ -57,13 +69,36 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Explosion")
 	float ExplosionRadius = 100;
 
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Explosion")
 	int32 InitialPieces = 50;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Explosion")
 	float PiecesScaleFactor = 1;
 
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera Movement")
+	float MaxCameraDistance = 400;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera Movement")
+	float MinCameraDistance = 95;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera Movement")
+	float MaxZoomOffset = 25;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera Movement")
+	float ArmLengthIncrement = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera Movement")
+	float DesiredArmLength = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera Movement")
+	float CameraInterpSpeed = 100;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera Movement")
+	float CameraZoomSpeed = 50;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera Movement")
+	float CameraZSpeed  = 2;
 
 	UFUNCTION(BlueprintCallable)
 	const int GetTotalPieces() const;
@@ -75,7 +110,7 @@ public:
 	const int GetInitialPieces() const;
 
 	UFUNCTION(BlueprintCallable)
-	const void SetInitialPieces(int32 pieces);
+	void SetInitialPieces(int32 pieces);
 
 	UFUNCTION(BlueprintCallable)
 	const float GetOffsetDistance() const;
@@ -132,8 +167,6 @@ private:
 
 	UPROPERTY(EditAnywhere, Category = "Materials")
 	UMaterialInterface* UnlitMaterial;
-
-	void InitializeAlwaysOnTopMaterials();
 
 	void SetPieceMaterial(UStaticMeshComponent* Piece, bool bAlwaysOnTop);
 

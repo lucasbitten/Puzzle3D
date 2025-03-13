@@ -161,20 +161,19 @@ void APuzzleModel::BeginPlay()
 	TotalPieces = PuzzlePieceParentComponents.Num() - 1; //Excluding the shell
 	
 	//InitializeAlwaysOnTopMaterials();
-
+	SpawnBase();
 	SetupModel();
 
-	AGameModeBase* GameModeBase = GetWorld()->GetAuthGameMode();
-	if (GameModeBase)
+	if (!PuzzleMode)
 	{
-		PuzzleMode = Cast<AGM_PuzzleMode>(GameModeBase);
-
-		if (PuzzleMode)
-		{
-			PuzzleMode->OnModelLoaded.Broadcast();
-		}
-
+		GetPuzzleGameMode();
 	}
+
+	if (PuzzleMode)
+	{
+		PuzzleMode->OnModelLoaded.Broadcast();
+	}
+	
 
 	APuzzlePawn* PuzzlePawn = Cast<APuzzlePawn>(UGameplayStatics::GetPlayerPawn(this, 0));
 
@@ -196,37 +195,6 @@ void APuzzleModel::PlayFittingSound() const
 	UGameplayStatics::PlaySound2D(this, Fitting);
 }
 
-void APuzzleModel::InitializeAlwaysOnTopMaterials()
-{
-	//if (PuzzlePieceParentComponents.Num() == 0)
-	//{
-	//	return;
-	//}
-
-	//UStaticMeshComponent* Piece = PuzzlePieceParentComponents[0]->GetPieceMesh();
-	//
-	//int32 NumMaterials = Piece->GetNumMaterials();
-
-	//for (int32 Index = 0; Index < NumMaterials; ++Index)
-	//{
-	//	UMaterialInterface* OriginalMaterial = Piece->GetMaterial(Index);
-
-	//	if (OriginalMaterial && !PieceAlwaysOnTopMaterials.Contains(OriginalMaterial))
-	//	{
-	//		// Cria uma instância dinâmica para "sempre na frente"
-	//		UMaterialInstanceDynamic* AlwaysOnTopMaterial = UMaterialInstanceDynamic::Create(OriginalMaterial, this);
-
-	//		if (AlwaysOnTopMaterial)
-	//		{
-	//			// Configura o material para ignorar o Depth Test
-	//			AlwaysOnTopMaterial->SetScalarParameterValue(TEXT("DisableDepthTest"), 1.0f);
-
-	//			// Armazena no mapa
-	//			PieceAlwaysOnTopMaterials.Add(OriginalMaterial, AlwaysOnTopMaterial);
-	//		}
-	//	}
-	//}
-}
 
 void APuzzleModel::SetPieceMaterial(UStaticMeshComponent* Piece, bool bAlwaysOnTop)
 {
@@ -264,6 +232,70 @@ void APuzzleModel::SetPieceMaterial(UStaticMeshComponent* Piece, bool bAlwaysOnT
 }
 
 
+
+void APuzzleModel::SpawnBase()
+{
+	if (BaseType == EBaseType::EBase_Invalid)
+	{
+		UE_LOG(LogTemp, Error, TEXT("No base spawned, BaseType is Invalid!"));
+		return;
+	}
+
+
+	if (BaseType == EBaseType::EBase_None)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("No base spawned, BaseType is None."));
+		return;
+	}
+
+	if (!PuzzleMode)
+	{
+		GetPuzzleGameMode();
+	}
+
+
+	UStaticMesh** FoundMesh = PuzzleMode->BaseMeshes.Find(BaseType);
+	if (!FoundMesh || !(*FoundMesh))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("No valid mesh found for this base type!"));
+		return;
+	}
+
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.Owner = nullptr;
+	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+	FVector SpawnLocation = GetActorLocation();
+	FRotator SpawnRotation = GetActorRotation();
+
+	AStaticMeshActor* BaseActor = GetWorld()->SpawnActor<AStaticMeshActor>(AStaticMeshActor::StaticClass(), SpawnLocation, SpawnRotation, SpawnParams);
+	if (BaseActor)
+	{
+		UStaticMeshComponent* MeshComponent = BaseActor->GetStaticMeshComponent();
+		if (MeshComponent)
+		{
+			MeshComponent->SetStaticMesh(*FoundMesh);
+		}
+		SpawnedBaseActor = BaseActor;
+		UE_LOG(LogTemp, Warning, TEXT("Base spawned successfully at location %s"), *SpawnLocation.ToString());
+	}
+
+}
+
+void APuzzleModel::GetPuzzleGameMode()
+{
+	AGameModeBase* GameModeBase = GetWorld()->GetAuthGameMode();
+	if (GameModeBase)
+	{
+		PuzzleMode = Cast<AGM_PuzzleMode>(GameModeBase);
+
+		if (!PuzzleMode)
+		{
+			UE_LOG(LogTemp, Error, TEXT("Game mode not found!"));
+		}
+
+	}
+}
 
 // Called every frame
 void APuzzleModel::Tick(float DeltaTime)
@@ -332,6 +364,25 @@ TArray<UPuzzlePieceParentComponent*> APuzzleModel::GetPiecesToSendToBoard() cons
 
 void APuzzleModel::SetupModel()
 {
+	if (SpawnedBaseActor)
+	{
+		UStaticMeshComponent* MeshComponent = SpawnedBaseActor->GetStaticMeshComponent();
+		if (!MeshComponent)
+		{
+			UE_LOG(LogTemp, Error, TEXT("O actor spawnado não possui um componente de Static Mesh!"));
+			return;
+		}
+
+
+		FBoxSphereBounds MeshBounds = MeshComponent->CalcBounds(MeshComponent->GetComponentTransform());
+		FVector TopCenter = FVector(MeshBounds.Origin.X, MeshBounds.Origin.Y, MeshBounds.Origin.Z + MeshBounds.BoxExtent.Z);
+		SetActorLocation(TopCenter);
+
+
+	}
+
+
+
 	if (Shell == nullptr)
 	{
 		for (UPuzzlePieceParentComponent* PuzzlePiece : PuzzlePieceParentComponents)
@@ -636,8 +687,7 @@ void APuzzleModel::OnPieceDropped(UPuzzlePieceParentComponent* piece)
 	MovePiecesToScreenSide();
 }
 
-
-const void APuzzleModel::SetInitialPieces(int32 pieces)
+void APuzzleModel::SetInitialPieces(int32 pieces)
 {
 	InitialPieces = pieces;
 }
