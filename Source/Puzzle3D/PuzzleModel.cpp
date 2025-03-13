@@ -1,4 +1,4 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+Ôªø// Fill out your copyright notice in the Description page of Project Settings.
 
 #include "PuzzleModel.h"
 #include "Engine/StaticMeshActor.h"
@@ -102,7 +102,7 @@ void APuzzleModel::LoadAllPieces()
 	loadedFromSaveGame = true;
 }
 
-// FunÁ„o para carregar o estado de uma peÁa especÌfica
+// Fun√ß√£o para carregar o estado de uma pe√ßa espec√≠fica
 void APuzzleModel::LoadPiece(FString PieceID)
 {
 	UPuzzleSaveGame* SaveGameInstance = Cast<UPuzzleSaveGame>(UGameplayStatics::LoadGameFromSlot(GetActorLabel(), 0));
@@ -201,10 +201,10 @@ void APuzzleModel::SetPieceMaterial(UStaticMeshComponent* Piece, bool bAlwaysOnT
 
 	if (bAlwaysOnTop)
 	{
-		Piece->SetMaterial(1, UnlitMaterial);
+		Piece->SetMaterial(1, PieceAlwaysOnTopMaterials[1]);
 	}
 	else {
-		Piece->SetMaterial(1, LitMaterial);	
+		Piece->SetMaterial(1, PieceDefaultMaterials[1]);
 	}
 
 	//OLD logic 
@@ -222,7 +222,7 @@ void APuzzleModel::SetPieceMaterial(UStaticMeshComponent* Piece, bool bAlwaysOnT
 		}
 		else
 		{
-			// Restaura o material padr„o
+			// Restaura o material padr√£o
 			if (Index < PieceDefaultMaterials.Num() && PieceDefaultMaterials[Index])
 			{
 				Piece->SetMaterial(Index, PieceDefaultMaterials[Index]);
@@ -241,7 +241,6 @@ void APuzzleModel::SpawnBase()
 		return;
 	}
 
-
 	if (BaseType == EBaseType::EBase_None)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("No base spawned, BaseType is None."));
@@ -252,7 +251,6 @@ void APuzzleModel::SpawnBase()
 	{
 		GetPuzzleGameMode();
 	}
-
 
 	UStaticMesh** FoundMesh = PuzzleMode->BaseMeshes.Find(BaseType);
 	if (!FoundMesh || !(*FoundMesh))
@@ -322,27 +320,27 @@ void APuzzleModel::SetScreenSidePosition()
 	if (!CameraManager)
 		return;
 
-	float CurrentFOV = CameraManager->GetFOVAngle(); // ObtÈm o FOV atual
+	float CurrentFOV = CameraManager->GetFOVAngle(); // Obt√©m o FOV atual
 
-	// Calcular a dist‚ncia ajustada com base no FOV
-	// Hipotenusa da trigonometria: dist‚ncia da c‚mera ao ScreenSidePosition
+	// Calcular a dist√¢ncia ajustada com base no FOV
+	// Hipotenusa da trigonometria: dist√¢ncia da c√¢mera ao ScreenSidePosition
 	float FOVRadians = FMath::DegreesToRadians(CurrentFOV * 0.5f);
-	float AdjustedDistance = ViewportSize.X / (2.0f * FMath::Tan(FOVRadians)); // RelaÁ„o entre tamanho do viewport e FOV
+	float AdjustedDistance = ViewportSize.X / (2.0f * FMath::Tan(FOVRadians)); // Rela√ß√£o entre tamanho do viewport e FOV
 	AdjustedDistance *= SidePiecesDistanceFromScreen;
 
 
-	// Converte a posiÁ„o da tela para o mundo
+	// Converte a posi√ß√£o da tela para o mundo
 	if (UGameplayStatics::GetPlayerController(this, 0)->DeprojectScreenPositionToWorld(
 		ScreenPosition.X, ScreenPosition.Y, WorldLocation, WorldDirection))
 	{
-		// Calcula a nova posiÁ„o em relaÁ„o ‡ c‚mera
+		// Calcula a nova posi√ß√£o em rela√ß√£o √† c√¢mera
 		FVector CameraLocation = UGameplayStatics::GetPlayerCameraManager(this, 0)->GetCameraLocation();
-		FVector NewPosition = CameraLocation + (WorldDirection * AdjustedDistance); // Ajusta a dist‚ncia fixa do lado direito
+		FVector NewPosition = CameraLocation + (WorldDirection * AdjustedDistance); // Ajusta a dist√¢ncia fixa do lado direito
 
-		// Ajusta a rotaÁ„o para acompanhar a c‚mera, mas ignora o pitch (inclinaÁ„o vertical)
+		// Ajusta a rota√ß√£o para acompanhar a c√¢mera, mas ignora o pitch (inclina√ß√£o vertical)
 		FRotator CameraRotation = UGameplayStatics::GetPlayerCameraManager(this, 0)->GetCameraRotation();
 
-		// Atualiza a posiÁ„o e a rotaÁ„o
+		// Atualiza a posi√ß√£o e a rota√ß√£o
 		ScreenSidePosition->SetWorldLocation(NewPosition);
 		ScreenSidePosition->SetWorldRotation(CameraRotation);
 
@@ -369,7 +367,7 @@ void APuzzleModel::SetupModel()
 		UStaticMeshComponent* MeshComponent = SpawnedBaseActor->GetStaticMeshComponent();
 		if (!MeshComponent)
 		{
-			UE_LOG(LogTemp, Error, TEXT("O actor spawnado n„o possui um componente de Static Mesh!"));
+			UE_LOG(LogTemp, Error, TEXT("O actor spawnado n√£o possui um componente de Static Mesh!"));
 			return;
 		}
 
@@ -500,27 +498,45 @@ void APuzzleModel::Explode()
 void APuzzleModel::MovePiecesToScreenSide(bool firstTime = false)
 {
 
-	const float ColumnOffset = 3.0f; // Dist‚ncia lateral entre as colunas
-	const float RowOffset = 5.0f;    // EspaÁamento vertical entre as peÁas
-	
-	const FVector BasePosition = ScreenSidePosition->GetComponentLocation();
-
 	const int32 TotalPiecesOnBoard = PiecesInBoard.Num();
+	int32 CurrentIndex = 0;
+
+	// Adjust number of columns dynamically based on total pieces
+	const int32 NumColumns = boardColumns; //FMath::CeilToInt(FMath::Sqrt(static_cast<float>(TotalPiecesOnBoard) * 1.5f)); // More columns for a wider grid
+	const int32 NumRows = FMath::CeilToInt((float)TotalPiecesOnBoard / NumColumns);
+
+	// 4Ô∏è‚É£ Adjust spacing based on scale to prevent overlapping
+	const float ColumnOffset = boardColumnOffset * boardPieceScaleFactor; // Increase spacing if scale is bigger
+	const float RowOffset = boardRowOffset * boardPieceScaleFactor;
+
+	// Define how much you want to shift the grid to the left
+	const FVector BasePosition = ScreenSidePosition->GetComponentLocation() + FVector(0.0f, boardGridOffset.X, 0.0f);
 
 	int rowDirection = 1;
 
-	int32 CurrentIndex = 0;
 	FVector CameraLocation = UGameplayStatics::GetPlayerCameraManager(this, 0)->GetCameraLocation();
 
 	for (UPuzzlePieceParentComponent* PieceParent : PiecesInBoard)
 	{
+
+
+		int32 CurrentRow = CurrentIndex / NumColumns;
+		int32 CurrentColumn = CurrentIndex % NumColumns;
+		
+		float ColumnDirection = (CurrentColumn == 0) ? -1.0f : 1.0f; // Esquerda (-1) ou direita (+1)
+
+		// Adjust for centering
+		float XOffset = (CurrentColumn - (NumColumns * 0.5f - 0.5f)) * ColumnOffset;
+		float ZOffset = (CurrentRow - (NumRows * 0.5f - 0.5f)) * RowOffset;
+
+		/*
 		int32 CurrentRow = CurrentIndex / 2;
 		int32 CurrentColumn = CurrentIndex % 2;
 
 		float ColumnDirection = (CurrentColumn == 0) ? -1.0f : 1.0f; // Esquerda (-1) ou direita (+1)
 		float XOffset = ColumnDirection * ColumnOffset;
 		float ZOffset = CurrentRow * RowOffset * rowDirection;
-
+		*/
 		if (CurrentColumn == 0)
 		{
 			rowDirection = -rowDirection;
@@ -528,7 +544,10 @@ void APuzzleModel::MovePiecesToScreenSide(bool firstTime = false)
 
 		// Calculates the new position relative to the ScreenSidePosition
 		FVector LocalOffset = FVector(0.0f, XOffset, ZOffset); // Y controla as colunas, Z as linhas
-		FVector NewPosition = ScreenSidePosition->GetComponentTransform().TransformPosition(LocalOffset);
+
+		FVector NewPosition = ScreenSidePosition->GetComponentTransform().TransformPosition(LocalOffset) + FVector(0.0f, boardGridOffset.X, 0.0f);
+
+		PieceParent->SetWorldScale3D(FVector(boardPieceScaleFactor));
 
 		// Updates the piece parent
 		PieceParent->AttachToComponent(ScreenSidePosition, FAttachmentTransformRules::KeepWorldTransform);
@@ -536,6 +555,7 @@ void APuzzleModel::MovePiecesToScreenSide(bool firstTime = false)
 
 		if (firstTime)
 		{
+/*
 			FRotator LookAtRotation = UKismetMathLibrary::FindLookAtRotation(NewPosition, CameraLocation);
 
 			FRotator BaseRotation = FRotator(90.0f, 90.0f, 90.0f);
@@ -548,6 +568,12 @@ void APuzzleModel::MovePiecesToScreenSide(bool firstTime = false)
 			FRotator AdjustedRotation = LookAtRotation + BaseRotation;
 
 			PieceParent->SetWorldRotation(AdjustedRotation);
+
+			*/
+			FRotator AdjustedRotation = FRotator(0.0f, 0.0f, 90.0f);
+			PieceParent->SetRelativeRotation(AdjustedRotation);
+
+
 		}
 		else {
 
@@ -565,8 +591,6 @@ void APuzzleModel::MovePiecesToScreenSide(bool firstTime = false)
 		}
 
 		CurrentIndex++;
-
-		
 
 	}
 

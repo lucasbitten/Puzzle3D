@@ -76,6 +76,21 @@ public:
 	float PiecesScaleFactor = 1;
 
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Board")
+	int32 boardColumns = 2;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Board")
+	int32 boardPieceScaleFactor = 1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Board")
+	float boardColumnOffset = 0.8f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Board")
+	float boardRowOffset = 0.8f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Board")
+	FVector2D boardGridOffset = FVector2D(0.0f, 0.0f);
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera Movement")
 	float MaxCameraDistance = 400;
 
@@ -161,12 +176,6 @@ private:
 	TArray<UMaterialInterface*> PieceAlwaysOnTopMaterials;
 	UPROPERTY(EditAnywhere, Category = "Materials")
 	TArray<UMaterialInterface*> PieceDefaultMaterials;
-
-	UPROPERTY(EditAnywhere, Category = "Materials")
-	UMaterialInterface* LitMaterial;
-
-	UPROPERTY(EditAnywhere, Category = "Materials")
-	UMaterialInterface* UnlitMaterial;
 
 	void SetPieceMaterial(UStaticMeshComponent* Piece, bool bAlwaysOnTop);
 
