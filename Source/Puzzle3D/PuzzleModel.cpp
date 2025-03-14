@@ -542,13 +542,12 @@ void APuzzleModel::MovePiecesToScreenSide(bool firstTime = false)
 		}
 		else
 		{
-			NewPosition = ScreenSidePosition->GetComponentTransform().TransformPosition(LocalOffset) + FVector(0.0f, boardGridOffset.X*2, 0.0f);
+			NewPosition = ScreenSidePosition->GetComponentTransform().TransformPosition(LocalOffset) + FVector(0.0f, boardGridOffset.X, 0.0f);
 		}
 
 
 		// Updates the piece parent
 		PieceParent->AttachToComponent(ScreenSidePosition, FAttachmentTransformRules::KeepWorldTransform);
-
 
 		PieceParent->SetWorldLocation(NewPosition);
 		

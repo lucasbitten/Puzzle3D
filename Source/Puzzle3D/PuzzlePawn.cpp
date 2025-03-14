@@ -70,8 +70,8 @@ void APuzzlePawn::OnLeftMouseButtonReleased()
 		{
 
 			DeselectPieceComponent();
-			CurrentPieceComponent->OnReleasedIncorrectPiece();
 			CurrentPieceComponent->StopLerpCloseToCameraTimeline();
+			CurrentPieceComponent->OnReleasedIncorrectPiece();
 			CurrentPieceComponent = nullptr;
 			CanMovePiece = true;
 		}
@@ -230,7 +230,7 @@ void APuzzlePawn::HandlePieceTouched(FHitResult& HitResult)
 					-1,                      // Unique message key
 					5.0f,                    // Duration in seconds
 					FColor::Cyan,            // Text color
-					FString::Printf(TEXT("OnPieceSelected %s"), *CurrentPieceComponent->GetFullName())
+					FString::Printf(TEXT("OnPieceSelected %s"), *CurrentPieceComponent->GetIdentifier())
 				);
 			}
 

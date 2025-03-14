@@ -381,10 +381,21 @@ void UPuzzlePieceParentComponent::SetBoardProperties(USceneComponent* parent, FV
 
 void UPuzzlePieceParentComponent::ResetToBoard()
 {
-    AttachToComponent(boardParent);
+    AttachToComponent(boardParent, FAttachmentTransformRules::KeepWorldTransform);
     SetWorldLocation(boardPosition);
     SetRelativeRotation(boardRotation);
     SetWorldScale3D(boardScale);
+
+    if (GEngine)
+    {
+        GEngine->AddOnScreenDebugMessage(
+            -1,
+            15.0f,
+            FColor::Green,
+            FString::Printf(TEXT("Reset %s at %s"), *GetIdentifier(), *boardPosition.ToString())
+        );
+    }
+
 }
 
 
