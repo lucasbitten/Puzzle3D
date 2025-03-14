@@ -266,7 +266,6 @@ void UPuzzlePieceParentComponent::InitializeLerpToPositionWithOffsetTimeline()
 
         LerpToPositionWithOffsetTimeline.SetTimelineLengthMode(ETimelineLengthMode::TL_LastKeyFrame);
 
-
         // Define a Timeline para loop (ou não)
         LerpToPositionWithOffsetTimeline.SetLooping(false);  // Não é looping
 
@@ -370,6 +369,22 @@ void UPuzzlePieceParentComponent::OnReleasedIncorrectPiece()
     {
         PuzzleModel->OnPieceDropped(this);
     }
+}
+
+void UPuzzlePieceParentComponent::SetBoardProperties(USceneComponent* parent, FVector position, FRotator rotation, FVector scale)
+{
+    boardParent = parent;
+    boardPosition = position;
+    boardRotation = rotation;
+    boardScale = scale;
+}
+
+void UPuzzlePieceParentComponent::ResetToBoard()
+{
+    AttachToComponent(boardParent);
+    SetWorldLocation(boardPosition);
+    SetRelativeRotation(boardRotation);
+    SetWorldScale3D(boardScale);
 }
 
 

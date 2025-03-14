@@ -30,6 +30,12 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Lerp")
 	UCurveFloat* LerpCurve;
 
+	USceneComponent* boardParent;
+	FVector boardPosition;
+	FRotator boardRotation;
+	FVector boardScale;
+
+
 public:	
 
 	void SetIdentifier(FString identifier);
@@ -91,6 +97,11 @@ public:
 	UFUNCTION()
 	void OnReleasedIncorrectPiece();
 
+	UFUNCTION()
+	void SetBoardProperties(USceneComponent* parent, FVector position, FRotator rotation, FVector scale);
+
+	UFUNCTION()
+	void ResetToBoard();
 
 private:
 

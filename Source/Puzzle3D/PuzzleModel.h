@@ -77,16 +77,16 @@ public:
 
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Board")
-	int32 boardColumns = 2;
+	int32 boardColumns = 3;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Board")
-	int32 boardPieceScaleFactor = 1;
+	int32 boardPieceScaleFactor = 2;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Board")
-	float boardColumnOffset = 0.8f;
+	float boardColumnOffset = 5.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Board")
-	float boardRowOffset = 0.8f;
+	float boardRowOffset = 6.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Board")
 	FVector2D boardGridOffset = FVector2D(0.0f, 0.0f);

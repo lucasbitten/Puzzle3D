@@ -206,7 +206,6 @@ void APuzzlePawn::HandlePieceTouched(FHitResult& HitResult)
 		if (PieceParent->GetIsLocked())
 		{
 			GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("Piece is Locked"));
-
 		}
 		else
 		{
@@ -231,10 +230,9 @@ void APuzzlePawn::HandlePieceTouched(FHitResult& HitResult)
 					-1,                      // Unique message key
 					5.0f,                    // Duration in seconds
 					FColor::Cyan,            // Text color
-					FString::Printf(TEXT("OnPieceSelected %s"), *CurrentPieceComponent->GetFullName())  // Corrected format
+					FString::Printf(TEXT("OnPieceSelected %s"), *CurrentPieceComponent->GetFullName())
 				);
 			}
-
 
 			OnPieceSelected.Broadcast(CurrentPieceComponent);
 

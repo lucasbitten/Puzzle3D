@@ -502,7 +502,7 @@ void APuzzleModel::MovePiecesToScreenSide(bool firstTime = false)
 	int32 CurrentIndex = 0;
 
 	// Adjust number of columns dynamically based on total pieces
-	const int32 NumColumns = boardColumns; //FMath::CeilToInt(FMath::Sqrt(static_cast<float>(TotalPiecesOnBoard) * 1.5f)); // More columns for a wider grid
+	const int32 NumColumns = boardColumns;
 	const int32 NumRows = FMath::CeilToInt((float)TotalPiecesOnBoard / NumColumns);
 
 	// 4️⃣ Adjust spacing based on scale to prevent overlapping
@@ -510,85 +510,58 @@ void APuzzleModel::MovePiecesToScreenSide(bool firstTime = false)
 	const float RowOffset = boardRowOffset * boardPieceScaleFactor;
 
 	// Define how much you want to shift the grid to the left
-	const FVector BasePosition = ScreenSidePosition->GetComponentLocation() + FVector(0.0f, boardGridOffset.X, 0.0f);
+	const FVector BasePosition = ScreenSidePosition->GetComponentLocation(); // +FVector(0.0f, boardGridOffset.X, 0.0f);
 
 	int rowDirection = 1;
-
-	FVector CameraLocation = UGameplayStatics::GetPlayerCameraManager(this, 0)->GetCameraLocation();
 
 	for (UPuzzlePieceParentComponent* PieceParent : PiecesInBoard)
 	{
 
-
 		int32 CurrentRow = CurrentIndex / NumColumns;
 		int32 CurrentColumn = CurrentIndex % NumColumns;
 		
-		float ColumnDirection = (CurrentColumn == 0) ? -1.0f : 1.0f; // Esquerda (-1) ou direita (+1)
+		float ColumnDirection = (CurrentColumn == 0) ? -1.0f : 1.0f; // Left (-1) or Right (+1)
 
 		// Adjust for centering
 		float XOffset = (CurrentColumn - (NumColumns * 0.5f - 0.5f)) * ColumnOffset;
 		float ZOffset = (CurrentRow - (NumRows * 0.5f - 0.5f)) * RowOffset;
 
-		/*
-		int32 CurrentRow = CurrentIndex / 2;
-		int32 CurrentColumn = CurrentIndex % 2;
-
-		float ColumnDirection = (CurrentColumn == 0) ? -1.0f : 1.0f; // Esquerda (-1) ou direita (+1)
-		float XOffset = ColumnDirection * ColumnOffset;
-		float ZOffset = CurrentRow * RowOffset * rowDirection;
-		*/
 		if (CurrentColumn == 0)
 		{
 			rowDirection = -rowDirection;
 		}
 
 		// Calculates the new position relative to the ScreenSidePosition
-		FVector LocalOffset = FVector(0.0f, XOffset, ZOffset); // Y controla as colunas, Z as linhas
+		FVector LocalOffset = FVector(0.0f, XOffset, ZOffset); // Y -> Columns, Z -> Rows
 
-		FVector NewPosition = ScreenSidePosition->GetComponentTransform().TransformPosition(LocalOffset) + FVector(0.0f, boardGridOffset.X, 0.0f);
-
-		PieceParent->SetWorldScale3D(FVector(boardPieceScaleFactor));
-
-		// Updates the piece parent
-		PieceParent->AttachToComponent(ScreenSidePosition, FAttachmentTransformRules::KeepWorldTransform);
-		PieceParent->SetWorldLocation(NewPosition);
+		FVector NewPosition;
 
 		if (firstTime)
 		{
-/*
-			FRotator LookAtRotation = UKismetMathLibrary::FindLookAtRotation(NewPosition, CameraLocation);
-
-			FRotator BaseRotation = FRotator(90.0f, 90.0f, 90.0f);
-
-			if (CurrentColumn == 0)
-			{
-				BaseRotation += FRotator(0.0f, 180.0f, 0.0f);
-			}
-
-			FRotator AdjustedRotation = LookAtRotation + BaseRotation;
-
-			PieceParent->SetWorldRotation(AdjustedRotation);
-
-			*/
-			FRotator AdjustedRotation = FRotator(0.0f, 0.0f, 90.0f);
-			PieceParent->SetRelativeRotation(AdjustedRotation);
-
-
+			NewPosition = ScreenSidePosition->GetComponentTransform().TransformPosition(LocalOffset) + FVector(0.0f, boardGridOffset.X, 0.0f);
 		}
-		else {
-
-			FRotator AdjustedRotation = FRotator(0.0f, 0.0f, 90.0f);
-			PieceParent->SetRelativeRotation(AdjustedRotation);
-	
-		}
-		
-		PieceParent->SetWorldScale3D(PieceParent->GetComponentScale() * PiecesScaleFactor);
-
-		if (CurrentIndex == 0)
+		else
 		{
-			UE_LOG(LogTemp, Log, TEXT("Piece Location: %s"), *PieceParent->GetComponentLocation().ToString());
-			UE_LOG(LogTemp, Log, TEXT("Piece Rotation: %s"), *PieceParent->GetComponentRotation().ToString());
+			NewPosition = ScreenSidePosition->GetComponentTransform().TransformPosition(LocalOffset) + FVector(0.0f, boardGridOffset.X*2, 0.0f);
 		}
+
+
+		// Updates the piece parent
+		PieceParent->AttachToComponent(ScreenSidePosition, FAttachmentTransformRules::KeepWorldTransform);
+
+
+		PieceParent->SetWorldLocation(NewPosition);
+		
+		//Set the rotation of the pieces relative to the ScreenSidePosition transform.
+		FRotator AdjustedRotation = FRotator(0.0f, 0.0f, 90.0f);
+		PieceParent->SetRelativeRotation(AdjustedRotation);
+
+		//Set the Piece Scale
+		PieceParent->SetWorldScale3D(FVector(boardPieceScaleFactor));
+		FVector NewScale = PieceParent->GetComponentScale() * PiecesScaleFactor;
+		PieceParent->SetWorldScale3D(NewScale);
+
+		PieceParent->SetBoardProperties(ScreenSidePosition, NewPosition, AdjustedRotation, NewScale);
 
 		CurrentIndex++;
 
@@ -683,6 +656,9 @@ void APuzzleModel::OnPiecePlaced(UPuzzlePieceParentComponent* piece)
 	SavePiece(piece->GetIdentifier(), true);
 	SetPieceMaterial(piece->GetPieceMesh(), false);
 
+
+	MovePiecesToScreenSide();
+
 	if (GEngine)
 	{
 		GEngine->AddOnScreenDebugMessage(
@@ -697,6 +673,9 @@ void APuzzleModel::OnPiecePlaced(UPuzzlePieceParentComponent* piece)
 
 void APuzzleModel::OnPieceDropped(UPuzzlePieceParentComponent* piece)
 {
+
+	piece->ResetToBoard();
+
 	if (GEngine)
 	{
 		GEngine->AddOnScreenDebugMessage(
@@ -707,8 +686,6 @@ void APuzzleModel::OnPieceDropped(UPuzzlePieceParentComponent* piece)
 		);
 	}
 
-
-	MovePiecesToScreenSide();
 }
 
 void APuzzleModel::SetInitialPieces(int32 pieces)
