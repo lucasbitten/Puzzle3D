@@ -201,34 +201,18 @@ void APuzzleModel::SetPieceMaterial(UStaticMeshComponent* Piece, bool bAlwaysOnT
 
 	if (bAlwaysOnTop)
 	{
-		Piece->SetMaterial(1, PieceAlwaysOnTopMaterials[1]);
+		if (PieceAlwaysOnTopMaterials.Num() == 2 && PieceAlwaysOnTopMaterials[1])
+		{
+			Piece->SetMaterial(1, PieceAlwaysOnTopMaterials[1]);
+		}
 	}
 	else {
-		Piece->SetMaterial(1, PieceDefaultMaterials[1]);
+		if (PieceAlwaysOnTopMaterials.Num() == 2 && PieceDefaultMaterials[1])
+		{
+			Piece->SetMaterial(1, PieceDefaultMaterials[1]);
+		}
 	}
 
-	//OLD logic 
-	/*
-	int32 NumMaterials = Piece->GetNumMaterials();
-	for (int32 Index = 0; Index < NumMaterials; ++Index)
-	{
-		if (bAlwaysOnTop)
-		{
-			// Usa o material "sempre na frente", se estiver configurado
-			if (Index < PieceAlwaysOnTopMaterials.Num() && PieceAlwaysOnTopMaterials[Index])
-			{
-				Piece->SetMaterial(Index, PieceAlwaysOnTopMaterials[Index]);
-			}
-		}
-		else
-		{
-			// Restaura o material padrão
-			if (Index < PieceDefaultMaterials.Num() && PieceDefaultMaterials[Index])
-			{
-				Piece->SetMaterial(Index, PieceDefaultMaterials[Index]);
-			}
-		}
-	}*/
 }
 
 
@@ -563,7 +547,10 @@ void APuzzleModel::MovePiecesToScreenSide(bool firstTime = false)
 		FVector NewScale = PieceParent->GetComponentScale() * PiecesScaleFactor;
 		PieceParent->SetWorldScale3D(NewScale);
 
-		PieceParent->SetBoardProperties(ScreenSidePosition, NewPosition, AdjustedRotation, PieceParent->GetComponentRotation(), NewScale);
+
+		FVector RelativePosition = ScreenSidePosition->GetComponentTransform().InverseTransformPosition(PieceParent->GetComponentLocation());
+
+		PieceParent->SetBoardProperties(ScreenSidePosition, RelativePosition, AdjustedRotation, PieceParent->GetComponentRotation(), NewScale);
 
 		CurrentIndex++;
 
