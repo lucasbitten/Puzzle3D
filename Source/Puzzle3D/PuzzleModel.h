@@ -140,7 +140,7 @@ public:
 	void OnPieceDropped(UPuzzlePieceParentComponent* piece);
 
 	UFUNCTION()
-	void MovePiecesToScreenSide(bool firstTime);
+	void MovePiecesToScreenSide();
 
 	UPROPERTY(EditAnywhere, Category = "Piece Movement")
 	bool ShowDebug;

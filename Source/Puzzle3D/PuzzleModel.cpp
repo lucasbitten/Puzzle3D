@@ -466,14 +466,14 @@ void APuzzleModel::Explode()
 
 	PiecesInBoard = PiecesToSendToBoard;
 
-	float PiecesByCircle = 360 / DegreeSpaceBetweenPieces;
-	int CircleCount = UKismetMathLibrary::FCeil(PiecesToSendToBoard.Num() / PiecesByCircle);
+	//float PiecesByCircle = 360 / DegreeSpaceBetweenPieces;
+	//int CircleCount = UKismetMathLibrary::FCeil(PiecesToSendToBoard.Num() / PiecesByCircle);
+	
 	ShuffleArray(PiecesToSendToBoard);
 
 	//MovePiecesToCylinder();
-
-	MovePiecesToScreenSide(true);
-
+	
+	MovePiecesToScreenSide();
 
 	if (PuzzleMode)
 	{
@@ -482,7 +482,7 @@ void APuzzleModel::Explode()
 }
 
 
-void APuzzleModel::MovePiecesToScreenSide(bool firstTime = false)
+void APuzzleModel::MovePiecesToScreenSide()
 {
 
 	const int32 TotalPiecesOnBoard = PiecesInBoard.Num();
@@ -496,13 +496,13 @@ void APuzzleModel::MovePiecesToScreenSide(bool firstTime = false)
 	const float ColumnOffset = boardColumnOffset * boardPieceScaleFactor; // Increase spacing if scale is bigger
 	const float RowOffset = boardRowOffset * boardPieceScaleFactor;
 
-	// Define how much you want to shift the grid to the left
-	const FVector BasePosition = ScreenSidePosition->GetComponentLocation(); // +FVector(0.0f, boardGridOffset.X, 0.0f);
-
 	int rowDirection = 1;
 
 	for (UPuzzlePieceParentComponent* PieceParent : PiecesInBoard)
 	{
+
+		// Updates the piece parent
+		PieceParent->AttachToComponent(ScreenSidePosition, FAttachmentTransformRules::KeepWorldTransform);
 
 		int32 CurrentRow = CurrentIndex / NumColumns;
 		int32 CurrentColumn = CurrentIndex % NumColumns;
@@ -510,8 +510,9 @@ void APuzzleModel::MovePiecesToScreenSide(bool firstTime = false)
 		float ColumnDirection = (CurrentColumn == 0) ? -1.0f : 1.0f; // Left (-1) or Right (+1)
 
 		// Adjust for centering
-		float XOffset = (CurrentColumn - (NumColumns * 0.5f - 0.5f)) * ColumnOffset;
-		float ZOffset = (CurrentRow - (NumRows * 0.5f - 0.5f)) * RowOffset;
+		float XOffset = (CurrentColumn - (NumColumns - 1) * 0.5f) * ColumnOffset;
+		float ZOffset = (CurrentRow - (NumRows - 1) * 0.5f) * RowOffset;
+
 
 		if (CurrentColumn == 0)
 		{
@@ -521,35 +522,27 @@ void APuzzleModel::MovePiecesToScreenSide(bool firstTime = false)
 		// Calculates the new position relative to the ScreenSidePosition
 		FVector LocalOffset = FVector(0.0f, XOffset, ZOffset); // Y -> Columns, Z -> Rows
 
-		FVector NewPosition;
-
-		if (firstTime)
-		{
-			NewPosition = ScreenSidePosition->GetComponentTransform().TransformPosition(LocalOffset) + FVector(0.0f, boardGridOffset.X, 0.0f);
-		}
-		else
-		{
-			NewPosition = ScreenSidePosition->GetComponentTransform().TransformPosition(LocalOffset) + FVector(0.0f, boardGridOffset.X, 0.0f);
-		}
-
-
-		// Updates the piece parent
-		PieceParent->AttachToComponent(ScreenSidePosition, FAttachmentTransformRules::KeepWorldTransform);
-
-		PieceParent->SetWorldLocation(NewPosition);
 		
-		//Set the rotation of the pieces relative to the ScreenSidePosition transform.
+		FVector NewWorldPosition = ScreenSidePosition->GetComponentTransform().TransformPosition(LocalOffset);
+		FVector ConvertedRelativePosition = ScreenSidePosition->GetComponentTransform().InverseTransformPosition(NewWorldPosition);
+		ConvertedRelativePosition += FVector(0.0f, boardGridOffset.X, 0.0f);
+
+		FVector NewPosition = ScreenSidePosition->GetComponentTransform().TransformPosition(ConvertedRelativePosition);
+		
+		//Location (World and Relative to parent)
+		PieceParent->SetWorldLocation(NewPosition);
+		FVector RelativePosition = ScreenSidePosition->GetComponentTransform().InverseTransformPosition(PieceParent->GetComponentLocation());
+		
+		//Rotation of the pieces relative to the ScreenSidePosition transform.
 		FRotator AdjustedRotation = FRotator(0.0f, 0.0f, 90.0f);
 		PieceParent->SetRelativeRotation(AdjustedRotation);
 
-		//Set the Piece Scale
+		//Scale of the pieces
 		PieceParent->SetWorldScale3D(FVector(boardPieceScaleFactor));
 		FVector NewScale = PieceParent->GetComponentScale() * PiecesScaleFactor;
 		PieceParent->SetWorldScale3D(NewScale);
 
-
-		FVector RelativePosition = ScreenSidePosition->GetComponentTransform().InverseTransformPosition(PieceParent->GetComponentLocation());
-
+		//Board properties for future resets
 		PieceParent->SetBoardProperties(ScreenSidePosition, RelativePosition, AdjustedRotation, PieceParent->GetComponentRotation(), NewScale);
 
 		CurrentIndex++;
@@ -662,9 +655,6 @@ void APuzzleModel::OnPiecePlaced(UPuzzlePieceParentComponent* piece)
 
 void APuzzleModel::OnPieceDropped(UPuzzlePieceParentComponent* piece)
 {
-
-//	piece->ResetToBoard();
-
 	if (GEngine)
 	{
 		GEngine->AddOnScreenDebugMessage(
