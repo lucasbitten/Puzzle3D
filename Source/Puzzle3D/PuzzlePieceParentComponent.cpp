@@ -52,7 +52,7 @@ void UPuzzlePieceParentComponent::TickComponent(float DeltaTime, ELevelTick Tick
         LerpToPositionWithOffsetTimeline.TickTimeline(DeltaTime);
     }
 
-    if (IsLerpingToCorrectPosition)
+    if (IsLerpingToCorrectPosition || IsLerpingToBoardPosition)
     {
         LerpToPositionTimeline.TickTimeline(DeltaTime);
     }
@@ -94,6 +94,15 @@ const FRotator UPuzzlePieceParentComponent::GetParentInitialWorldRotator() const
     return InitialParentWorldRotator;
 }
 
+void UPuzzlePieceParentComponent::SetParentInitialWorldScale(FVector initialScale)
+{
+    InitialParentWorldScale = initialScale;
+}
+
+const FVector UPuzzlePieceParentComponent::GetParentInitialWorldScale() const
+{
+    return InitialParentWorldScale;
+}
 
 const bool UPuzzlePieceParentComponent::GetIsLocked() const
 {
@@ -302,6 +311,7 @@ void UPuzzlePieceParentComponent::InitializeLerpToCorrectPositionTimeline()
         PuzzleModel->PlayFittingSound();
 
         IsLerpingToCorrectPosition = true;
+        IsLerpingToBoardPosition = false;
 
         LerpStartPosition = GetParentInitialWorldPositionWithOffset();
         LerpEndPosition = GetParentInitialWorldPosition();
@@ -353,6 +363,7 @@ void UPuzzlePieceParentComponent::OnLerpToCorrectPositionTimelineFinished()
 
     SetWorldLocation(InitialParentWorldPosition);
     SetWorldRotation(InitialParentWorldRotator);
+    SetWorldScale3D(InitialParentWorldScale);
     GetPieceMesh()->SetRelativeRotation(PieceInitialRelativeRotation);
 
     SetIsLocked(true);
@@ -363,27 +374,87 @@ void UPuzzlePieceParentComponent::OnLerpToCorrectPositionTimelineFinished()
     }
 }
 
-void UPuzzlePieceParentComponent::OnReleasedIncorrectPiece()
+
+
+void UPuzzlePieceParentComponent::InitializeLerpToBoardPositionTimeline()
 {
+    if (LerpCurve)
+    {
+
+        IsLerpingToBoardPosition = true;
+        IsLerpingToCorrectPosition = false;
+
+        LerpStartPosition = GetParentInitialWorldPositionWithOffset();
+        LerpEndPosition = boardPosition;
+
+        LerpStartRotation = GetComponentRotation();
+        LerpEndRotation = boardRotationWorld;
+
+
+        // Bind da função para ser chamada em cada atualização da Timeline
+        FOnTimelineFloat TimelineProgress;
+        TimelineProgress.BindUFunction(this, FName("HandleLerpToBoardPositionProgress"));
+
+        // Bind para a função de finalização
+        FOnTimelineEvent TimelineFinished;
+        TimelineFinished.BindUFunction(this, FName("OnLerpToBoardPositionTimelineFinished"));
+
+        // Adiciona as funções à Timeline
+        LerpToPositionTimeline.AddInterpFloat(LerpCurve, TimelineProgress);
+        LerpToPositionTimeline.SetTimelineFinishedFunc(TimelineFinished);
+
+        LerpToPositionTimeline.SetTimelineLengthMode(ETimelineLengthMode::TL_LastKeyFrame);
+
+        // Define a Timeline para loop (ou não)
+        LerpToPositionTimeline.SetLooping(false);
+
+        LerpToPositionTimeline.PlayFromStart();
+    }
+}
+
+void UPuzzlePieceParentComponent::HandleLerpToBoardPositionProgress(float Value)
+{
+    // Interpolando a posição
+    FVector NewPosition = FMath::Lerp(LerpStartPosition, LerpEndPosition, Value);
+    SetWorldLocation(NewPosition);
+}
+
+void UPuzzlePieceParentComponent::OnLerpToBoardPositionTimelineFinished()
+{
+    IsLerpingToBoardPosition = false;
+
+    //ResetToBoard();
+    SetWorldScale3D(boardScale);
+
+    SetIsLocked(false);
+    OnLerpToBoardPositionCompletedCallback.Broadcast();
+
     if (PuzzleModel)
     {
         PuzzleModel->OnPieceDropped(this);
     }
 }
 
-void UPuzzlePieceParentComponent::SetBoardProperties(USceneComponent* parent, FVector position, FRotator rotation, FVector scale)
+
+void UPuzzlePieceParentComponent::OnReleasedIncorrectPiece()
+{
+    InitializeLerpToBoardPositionTimeline();
+}
+
+void UPuzzlePieceParentComponent::SetBoardProperties(USceneComponent* parent, FVector position, FRotator rotation, FRotator worldRotation, FVector scale)
 {
     boardParent = parent;
     boardPosition = position;
     boardRotation = rotation;
+    boardRotationWorld = worldRotation;
     boardScale = scale;
 }
 
 void UPuzzlePieceParentComponent::ResetToBoard()
 {
-    AttachToComponent(boardParent, FAttachmentTransformRules::KeepWorldTransform);
     SetWorldLocation(boardPosition);
     SetRelativeRotation(boardRotation);
+    SetWorldRotation(boardRotationWorld);
     SetWorldScale3D(boardScale);
 
     if (GEngine)

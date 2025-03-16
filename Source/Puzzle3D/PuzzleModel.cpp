@@ -420,6 +420,7 @@ void APuzzleModel::SetupModel()
 
 			PuzzlePiece->SetParentInitialWorldPosition(PuzzlePiece->GetComponentLocation());
 			PuzzlePiece->SetParentInitialWorldRotator(PuzzlePiece->GetComponentRotation());
+			PuzzlePiece->SetParentInitialWorldScale(PuzzlePiece->GetComponentScale());
 
 			PuzzlePiece->SetOffsetDistance(OffsetDistance);
 			PuzzlePiece->SetParentInitialWorldPositionWithOffset(PuzzlePiece->GetComponentLocation() + (PuzzlePiece->GetForwardVector() * -OffsetDistance));
@@ -442,6 +443,7 @@ void APuzzleModel::Explode()
 	CorrectPiecesPlaced = 0;
 
 	PiecesToSendToBoard.Empty();
+	PiecesInBoard.Empty();
 
 	for (UPuzzlePieceParentComponent* PuzzlePiece : PuzzlePieceParentComponents)
 	{
@@ -463,6 +465,7 @@ void APuzzleModel::Explode()
 				PuzzlePiece->SetIsOnBoard(false);
 				PuzzlePiece->SetWorldLocation(PuzzlePiece->GetParentInitialWorldPosition());
 				PuzzlePiece->SetWorldRotation(PuzzlePiece->GetParentInitialWorldRotator());
+				PuzzlePiece->SetWorldScale3D(PuzzlePiece->GetParentInitialWorldScale());
 				CorrectPiecesPlaced++;
 				SetPieceMaterial(PuzzlePiece->GetPieceMesh(), false);
 			}
@@ -560,7 +563,7 @@ void APuzzleModel::MovePiecesToScreenSide(bool firstTime = false)
 		FVector NewScale = PieceParent->GetComponentScale() * PiecesScaleFactor;
 		PieceParent->SetWorldScale3D(NewScale);
 
-		PieceParent->SetBoardProperties(ScreenSidePosition, NewPosition, AdjustedRotation, NewScale);
+		PieceParent->SetBoardProperties(ScreenSidePosition, NewPosition, AdjustedRotation, PieceParent->GetComponentRotation(), NewScale);
 
 		CurrentIndex++;
 
@@ -673,7 +676,7 @@ void APuzzleModel::OnPiecePlaced(UPuzzlePieceParentComponent* piece)
 void APuzzleModel::OnPieceDropped(UPuzzlePieceParentComponent* piece)
 {
 
-	piece->ResetToBoard();
+//	piece->ResetToBoard();
 
 	if (GEngine)
 	{

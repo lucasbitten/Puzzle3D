@@ -33,6 +33,7 @@ protected:
 	USceneComponent* boardParent;
 	FVector boardPosition;
 	FRotator boardRotation;
+	FRotator boardRotationWorld;
 	FVector boardScale;
 
 
@@ -55,8 +56,14 @@ public:
 	const FVector GetParentInitialWorldPositionWithOffset() const;
 
 	void SetParentInitialWorldRotator(FRotator initialRotation);
+
 	UFUNCTION(BlueprintCallable)
 	const FRotator GetParentInitialWorldRotator() const;
+
+	void SetParentInitialWorldScale(FVector initialScale);
+
+	UFUNCTION(BlueprintCallable)
+	const FVector GetParentInitialWorldScale() const;
 
 
 	UFUNCTION(BlueprintCallable)
@@ -98,7 +105,7 @@ public:
 	void OnReleasedIncorrectPiece();
 
 	UFUNCTION()
-	void SetBoardProperties(USceneComponent* parent, FVector position, FRotator rotation, FVector scale);
+	void SetBoardProperties(USceneComponent* parent, FVector position, FRotator rotation, FRotator worldRotation, FVector scale);
 
 	UFUNCTION()
 	void ResetToBoard();
@@ -118,6 +125,9 @@ private:
 
 	UPROPERTY(VisibleAnywhere, Category = "Initial Info", meta = (AllowPrivateAccess = "true"))
 	FRotator InitialParentWorldRotator;
+
+	UPROPERTY(VisibleAnywhere, Category = "Initial Info", meta = (AllowPrivateAccess = "true"))
+	FVector InitialParentWorldScale;
 
 	UPROPERTY(VisibleAnywhere, Category = "Initial Info", meta = (AllowPrivateAccess = "true"))
 	FVector InitialParentWorldPositionWithOffset;
@@ -150,6 +160,7 @@ public:
 	FOnLerpCompleted OnLerpToCorrectPositionWithOffsetCompletedCallback;
 	FOnLerpCompleted OnLerpToCorrectPositionCompletedCallback;
 	FOnLerpCompleted OnLerpToCameraCompletedCallback;
+	FOnLerpCompleted OnLerpToBoardPositionCompletedCallback;
 
 
 	FVector CalculatePositionOutsideModel();
@@ -180,23 +191,25 @@ private:
 	bool IsLerpingToCorrectPositionWithOffset = false;
 	bool IsLerpingToCorrectPosition = false;
 	bool IsLerpingCloseToCamera = false;
+	bool IsLerpingToBoardPosition = false;
 
+	//Lerp Close to Camera
 	UFUNCTION()
 	void HandleLerpCloseToCameraProgress(float Value);
 
 	UFUNCTION()
 	void OnLerpCloseToCameraTimelineFinished();
 
-
+	//Lerp to Position with Offset
 	UFUNCTION()
 	void HandleLerpWithOffsetProgress(float Value);
 
 	UFUNCTION()
 	void OnLerpToPositionWithOffsetTimelineFinished();
 
+
+	//Lerp to Correct Position
 	void InitializeLerpToCorrectPositionTimeline();
-
-
 
 	UFUNCTION()
 	void HandleLerpToCorrectPositionProgress(float Value);
@@ -204,6 +217,16 @@ private:
 	UFUNCTION()
 	void OnLerpToCorrectPositionTimelineFinished();
 
+
+
+	//Lerp Piece back to Board Position
+	void InitializeLerpToBoardPositionTimeline();
+
+	UFUNCTION()
+	void HandleLerpToBoardPositionProgress(float Value);
+
+	UFUNCTION()
+	void OnLerpToBoardPositionTimelineFinished();
 
 
 #pragma endregion
