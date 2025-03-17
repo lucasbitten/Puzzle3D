@@ -293,6 +293,7 @@ void APuzzleModel::Tick(float DeltaTime)
 
 void APuzzleModel::SetScreenSidePosition()
 {
+
 	FVector2D ScreenPosition;
 	FVector WorldLocation, WorldDirection;
 
@@ -324,7 +325,16 @@ void APuzzleModel::SetScreenSidePosition()
 		// Ajusta a rotação para acompanhar a câmera, mas ignora o pitch (inclinação vertical)
 		FRotator CameraRotation = UGameplayStatics::GetPlayerCameraManager(this, 0)->GetCameraRotation();
 
-		// Atualiza a posição e a rotação
+		// Convert boardScrollAmount (0-100) to relative Z position
+		FVector startPos = PiecesInBoard[0]->GetBoardPosition();
+		FVector endPos = PiecesInBoard[PiecesInBoard.Num() - 1]->GetBoardPosition();
+
+		FVector customPos = FMath::Lerp(startPos, endPos, boardScrollAmount / 100.0f);
+		
+		FVector NewWorldPosition = ScreenSidePosition->GetComponentTransform().TransformPosition(customPos);
+		
+		NewPosition.Z = NewWorldPosition.Z;
+
 		ScreenSidePosition->SetWorldLocation(NewPosition);
 		ScreenSidePosition->SetWorldRotation(CameraRotation);
 
@@ -333,6 +343,14 @@ void APuzzleModel::SetScreenSidePosition()
 	}
 }
 
+void APuzzleModel::SetBoardScrollAmount(float mouseDeltaY)
+{
+	// Convert MouseDeltaY into `boardScrollAmount` change
+	float NewCustomPos = boardScrollAmount + (-mouseDeltaY * boardScrollSpeed);
+
+	// Clamp customPos to be within bounds (0 to 100)
+	NewCustomPos = FMath::Clamp(NewCustomPos, 0.0f, 100.0f);
+}
 
 TArray<UInnerMesh*> APuzzleModel::GetInnerMeshComponents() const
 {

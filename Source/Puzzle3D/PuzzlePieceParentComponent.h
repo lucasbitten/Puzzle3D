@@ -65,6 +65,8 @@ public:
 	UFUNCTION(BlueprintCallable)
 	const FVector GetParentInitialWorldScale() const;
 
+	const FVector GetBoardPosition() const;
+
 
 	UFUNCTION(BlueprintCallable)
 	const bool GetIsLocked() const;

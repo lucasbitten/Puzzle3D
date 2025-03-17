@@ -91,6 +91,15 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Board")
 	FVector2D boardGridOffset = FVector2D(0.0f, 0.0f);
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Board")
+	bool isScrollingBoard = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Board")
+	float boardScrollAmount = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Board")
+	float boardScrollSpeed = 0.2f;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera Movement")
 	float MaxCameraDistance = 400;
 
@@ -114,6 +123,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera Movement")
 	float CameraZSpeed  = 2;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera Movement")
+	bool IsMovingCamera = false;
 
 	UFUNCTION(BlueprintCallable)
 	const int GetTotalPieces() const;
@@ -166,6 +178,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio")
 	USoundBase* Fitting;
 
+	UFUNCTION(BlueprintCallable, Category = "Board")
+	void SetBoardScrollAmount(float mouseDeltaY);
 
 
 	void PlayFittingSound() const;

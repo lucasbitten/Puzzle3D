@@ -458,6 +458,10 @@ void UPuzzlePieceParentComponent::ResetToBoard()
     SetRelativeRotation(boardRotation);
 }
 
+const FVector UPuzzlePieceParentComponent::GetBoardPosition() const
+{
+    return boardPosition;
+}
 
 FVector UPuzzlePieceParentComponent::CalculatePositionOutsideModel()
 {
