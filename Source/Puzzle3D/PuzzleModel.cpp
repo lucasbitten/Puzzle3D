@@ -290,13 +290,12 @@ void APuzzleModel::Tick(float DeltaTime)
 	SetScreenSidePosition();
 }
 
-
 void APuzzleModel::SetScreenSidePosition()
 {
-
 	FVector2D ScreenPosition;
 	FVector WorldLocation, WorldDirection;
 
+	// Retrieve the viewport size
 	const FVector2D ViewportSize = GEngine->GameViewport->Viewport->GetSizeXY();
 	const float HorizontalOffset = 150.0f;
 	ScreenPosition = FVector2D(ViewportSize.X - HorizontalOffset, ViewportSize.Y * 0.5f);
@@ -305,51 +304,84 @@ void APuzzleModel::SetScreenSidePosition()
 	if (!CameraManager)
 		return;
 
-	float CurrentFOV = CameraManager->GetFOVAngle(); // Obtém o FOV atual
-
-	// Calcular a distância ajustada com base no FOV
-	// Hipotenusa da trigonometria: distância da câmera ao ScreenSidePosition
+	// Get the current field of view
+	float CurrentFOV = CameraManager->GetFOVAngle();
 	float FOVRadians = FMath::DegreesToRadians(CurrentFOV * 0.5f);
-	float AdjustedDistance = ViewportSize.X / (2.0f * FMath::Tan(FOVRadians)); // Relação entre tamanho do viewport e FOV
+	float AdjustedDistance = ViewportSize.X / (2.0f * FMath::Tan(FOVRadians));
 	AdjustedDistance *= SidePiecesDistanceFromScreen;
 
-
-	// Converte a posição da tela para o mundo
+	// Convert screen position to world position
 	if (UGameplayStatics::GetPlayerController(this, 0)->DeprojectScreenPositionToWorld(
 		ScreenPosition.X, ScreenPosition.Y, WorldLocation, WorldDirection))
 	{
-		// Calcula a nova posição em relação à câmera
-		FVector CameraLocation = UGameplayStatics::GetPlayerCameraManager(this, 0)->GetCameraLocation();
-		FVector NewPosition = CameraLocation + (WorldDirection * AdjustedDistance); // Ajusta a distância fixa do lado direito
+		// Compute the camera location
+		FVector CameraLocation = CameraManager->GetCameraLocation();
+		FVector NewPosition = CameraLocation + (WorldDirection * AdjustedDistance);
 
-		// Ajusta a rotação para acompanhar a câmera, mas ignora o pitch (inclinação vertical)
-		FRotator CameraRotation = UGameplayStatics::GetPlayerCameraManager(this, 0)->GetCameraRotation();
+		// Get the start and end positions of the board (these are relative positions of pieces on the board)
+		FVector startPos = PiecesInBoard[0]->GetBoardPosition(); // Top position
+		FVector endPos = PiecesInBoard.Last()->GetBoardPosition(); // Bottom position
 
-		// Convert boardScrollAmount (0-100) to relative Z position
-		FVector startPos = PiecesInBoard[0]->GetBoardPosition();
-		FVector endPos = PiecesInBoard[PiecesInBoard.Num() - 1]->GetBoardPosition();
+		// Draw debug spheres to visualize the positions
+		DrawDebugSphere(GetWorld(), ScreenSidePosition->GetComponentTransform().TransformPosition(startPos), 10.0f, 6, FColor::Green, false, -1.0f, 0, 1.0f); // Start position (Top)
+		DrawDebugSphere(GetWorld(), ScreenSidePosition->GetComponentTransform().TransformPosition(endPos), 10.0f, 6, FColor::Red, false, -1.0f, 0, 1.0f);   // End position (Bottom)
 
-		FVector customPos = FMath::Lerp(startPos, endPos, boardScrollAmount / 100.0f);
-		
-		FVector NewWorldPosition = ScreenSidePosition->GetComponentTransform().TransformPosition(customPos);
-		
-		NewPosition.Z = NewWorldPosition.Z;
+		if (GEngine)
+		{
+			GEngine->AddOnScreenDebugMessage(
+				-1,                      // Unique message key
+				5.0f,                    // Duration in seconds
+				FColor::Green,            // Text color
+				FString::Printf(TEXT("Top Piece %s"), *PiecesInBoard[0]->GetIdentifier())  // Corrected format
+			);
+		}
+		if (GEngine)
+		{
+			GEngine->AddOnScreenDebugMessage(
+				-1,                      // Unique message key
+				5.0f,                    // Duration in seconds
+				FColor::Red,            // Text color
+				FString::Printf(TEXT("Bottom Piece %s"), *PiecesInBoard.Last()->GetIdentifier())  // Corrected format
+			);
+		}
 
+		// Map boardScrollAmount (0 to 100) to the relative Z position between startPos and endPos
+		float ClampedScroll = FMath::Clamp(boardScrollAmount, 0.0f, 100.0f);
+		// Lerp to get the exact Z position based on scroll
+		float TargetZ = FMath::Lerp(startPos.Z, endPos.Z, ClampedScroll / 100.0f);
+
+		// Set the final Z position within the valid range
+		NewPosition.Z = TargetZ;
+
+		// Make the plane always face the camera (ignoring pitch)
+		FRotator LookAtRotation = (NewPosition - CameraLocation).Rotation();
+		LookAtRotation.Pitch = 0.0f; // Ignore the pitch to avoid tilting
+
+		// Apply the final world position and rotation
 		ScreenSidePosition->SetWorldLocation(NewPosition);
-		ScreenSidePosition->SetWorldRotation(CameraRotation);
-
-		//DrawDebugSphere(GetWorld(), NewPosition, 10.f, 12, FColor::Green, false, -1.f, 0, 0.5f);
-
+		ScreenSidePosition->SetWorldRotation(LookAtRotation);
 	}
 }
+
 
 void APuzzleModel::SetBoardScrollAmount(float mouseDeltaY)
 {
 	// Convert MouseDeltaY into `boardScrollAmount` change
-	float NewCustomPos = boardScrollAmount + (-mouseDeltaY * boardScrollSpeed);
+	boardScrollAmount += ( -mouseDeltaY * boardScrollSpeed);
 
 	// Clamp customPos to be within bounds (0 to 100)
-	NewCustomPos = FMath::Clamp(NewCustomPos, 0.0f, 100.0f);
+	boardScrollAmount = FMath::Clamp(boardScrollAmount, 0.0f, 100.0f);
+
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(
+			-1,                      // Unique message key
+			5.0f,                    // Duration in seconds
+			FColor::Cyan,            // Text color
+			FString::Printf(TEXT("boardScrollAmount: %.2f"), boardScrollAmount)  // Corrected format
+		);
+	}
+
 }
 
 TArray<UInnerMesh*> APuzzleModel::GetInnerMeshComponents() const
