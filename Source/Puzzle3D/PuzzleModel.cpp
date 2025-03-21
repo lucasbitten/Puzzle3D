@@ -294,11 +294,14 @@ void APuzzleModel::SetScreenSidePosition()
 {
 	FVector2D ScreenPosition;
 	FVector WorldLocation, WorldDirection;
+	FVector WorldTopLimit, WorldBottomLimit, TopDirection, BottomDirection;
 
 	// Retrieve the viewport size
 	const FVector2D ViewportSize = GEngine->GameViewport->Viewport->GetSizeXY();
 	const float HorizontalOffset = 150.0f;
 	ScreenPosition = FVector2D(ViewportSize.X - HorizontalOffset, ViewportSize.Y * 0.5f);
+
+	APlayerController* PlayerController = UGameplayStatics::GetPlayerController(this, 0);
 
 	APlayerCameraManager* CameraManager = UGameplayStatics::GetPlayerCameraManager(this, 0);
 	if (!CameraManager)
@@ -311,47 +314,35 @@ void APuzzleModel::SetScreenSidePosition()
 	AdjustedDistance *= SidePiecesDistanceFromScreen;
 
 	// Convert screen position to world position
-	if (UGameplayStatics::GetPlayerController(this, 0)->DeprojectScreenPositionToWorld(
-		ScreenPosition.X, ScreenPosition.Y, WorldLocation, WorldDirection))
+	if (PlayerController->DeprojectScreenPositionToWorld(ScreenPosition.X, ScreenPosition.Y, WorldLocation, WorldDirection) &&
+		PlayerController->DeprojectScreenPositionToWorld(ScreenPosition.X, 0.0f, WorldTopLimit, TopDirection) &&
+		PlayerController->DeprojectScreenPositionToWorld(ScreenPosition.X, ViewportSize.Y, WorldBottomLimit, BottomDirection))
 	{
 		// Compute the camera location
 		FVector CameraLocation = CameraManager->GetCameraLocation();
+
 		FVector NewPosition = CameraLocation + (WorldDirection * AdjustedDistance);
 
-		// Get the start and end positions of the board (these are relative positions of pieces on the board)
-		FVector startPos = PiecesInBoard[0]->GetBoardPosition(); // Top position
-		FVector endPos = PiecesInBoard.Last()->GetBoardPosition(); // Bottom position
+		//For bottom and top max/min
+		FVector TopPosition = CameraLocation + (TopDirection * AdjustedDistance);
+		FVector BottomPosition = CameraLocation + (BottomDirection * AdjustedDistance);
 
-		// Draw debug spheres to visualize the positions
-		DrawDebugSphere(GetWorld(), ScreenSidePosition->GetComponentTransform().TransformPosition(startPos), 10.0f, 6, FColor::Green, false, -1.0f, 0, 1.0f); // Start position (Top)
-		DrawDebugSphere(GetWorld(), ScreenSidePosition->GetComponentTransform().TransformPosition(endPos), 10.0f, 6, FColor::Red, false, -1.0f, 0, 1.0f);   // End position (Bottom)
+		float ScrollFactor = boardScrollAmount / 100.0f;
 
-		if (GEngine)
-		{
-			GEngine->AddOnScreenDebugMessage(
-				-1,                      // Unique message key
-				5.0f,                    // Duration in seconds
-				FColor::Green,            // Text color
-				FString::Printf(TEXT("Top Piece %s"), *PiecesInBoard[0]->GetIdentifier())  // Corrected format
-			);
-		}
-		if (GEngine)
-		{
-			GEngine->AddOnScreenDebugMessage(
-				-1,                      // Unique message key
-				5.0f,                    // Duration in seconds
-				FColor::Red,            // Text color
-				FString::Printf(TEXT("Bottom Piece %s"), *PiecesInBoard.Last()->GetIdentifier())  // Corrected format
-			);
-		}
+		// Get the start and end world positions of the board (calculated from the relative positions of pieces on the board)
+		FVector WorldStartPos = ScreenSidePosition->GetComponentTransform().TransformPosition(PiecesInBoard[0]->GetBoardPosition()); // Top position
+		FVector WorldEndPos = ScreenSidePosition->GetComponentTransform().TransformPosition(PiecesInBoard.Last()->GetBoardPosition()); // Bottom position
 
-		// Map boardScrollAmount (0 to 100) to the relative Z position between startPos and endPos
-		float ClampedScroll = FMath::Clamp(boardScrollAmount, 0.0f, 100.0f);
-		// Lerp to get the exact Z position based on scroll
-		float TargetZ = FMath::Lerp(startPos.Z, endPos.Z, ClampedScroll / 100.0f);
+		float OffSet = 12.5f;
 
-		// Set the final Z position within the valid range
-		NewPosition.Z = TargetZ;
+		// Get the local height of the plane
+		float PlaneHeight = FMath::Abs((WorldStartPos.Z-OffSet) - (WorldEndPos.Z+OffSet)) / 2.0f;
+		// We want the **top** of the plane to match `WorldTopLimit` when CustomPoint = 0
+		// and the **bottom** of the plane to match `WorldBottomLimit` when CustomPoint = 100
+		float WorldZ = FMath::Lerp(TopPosition.Z - PlaneHeight, BottomPosition.Z + PlaneHeight, ScrollFactor);
+
+		// Set the new Z position
+		NewPosition.Z = WorldZ;
 
 		// Make the plane always face the camera (ignoring pitch)
 		FRotator LookAtRotation = (NewPosition - CameraLocation).Rotation();
@@ -371,16 +362,6 @@ void APuzzleModel::SetBoardScrollAmount(float mouseDeltaY)
 
 	// Clamp customPos to be within bounds (0 to 100)
 	boardScrollAmount = FMath::Clamp(boardScrollAmount, 0.0f, 100.0f);
-
-	if (GEngine)
-	{
-		GEngine->AddOnScreenDebugMessage(
-			-1,                      // Unique message key
-			5.0f,                    // Duration in seconds
-			FColor::Cyan,            // Text color
-			FString::Printf(TEXT("boardScrollAmount: %.2f"), boardScrollAmount)  // Corrected format
-		);
-	}
 
 }
 
