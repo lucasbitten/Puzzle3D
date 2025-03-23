@@ -386,7 +386,8 @@ void UPuzzlePieceParentComponent::InitializeLerpToBoardPositionTimeline()
 
         LerpStartPosition = GetParentInitialWorldPositionWithOffset();
 
-        FVector NewWorldPosition = boardScreenSidePosition->GetComponentTransform().TransformPosition(boardPosition);
+        FVector NewWorldPosition = boardParent->GetComponentTransform().TransformPosition(boardPosition);
+
         LerpEndPosition = NewWorldPosition;
 
         LerpStartRotation = GetComponentRotation();

@@ -575,7 +575,7 @@ void APuzzleModel::MovePiecesToScreenSide()
 		
 		//Location (World and Relative to parent)
 		PieceParent->SetWorldLocation(NewPosition);
-		FVector RelativePosition = ScreenSidePosition->GetComponentTransform().InverseTransformPosition(PieceParent->GetComponentLocation());
+		FVector RelativePosition = BoardMesh->GetComponentTransform().InverseTransformPosition(PieceParent->GetComponentLocation());
 		
 		//Rotation of the pieces relative to the ScreenSidePosition transform.
 		FRotator AdjustedRotation = FRotator(0.0f, 0.0f, 90.0f);
