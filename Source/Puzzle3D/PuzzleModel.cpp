@@ -21,7 +21,10 @@ APuzzleModel::APuzzleModel()
 
 	ScreenSidePosition = CreateDefaultSubobject<USceneComponent>(TEXT("ScreenSidePosition"));
 	ScreenSidePosition->SetupAttachment(RootComponent);
-	
+
+	BoardMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("BoardMesh"));
+	BoardMesh->AttachToComponent(ScreenSidePosition, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+
 }
 
 
@@ -164,6 +167,7 @@ void APuzzleModel::BeginPlay()
 	SpawnBase();
 	SetupModel();
 
+
 	if (!PuzzleMode)
 	{
 		GetPuzzleGameMode();
@@ -180,6 +184,7 @@ void APuzzleModel::BeginPlay()
 	if (PuzzlePawn)
 	{
 		PuzzlePawn->OnPieceSelected.AddDynamic(this, &APuzzleModel::OnPieceSelected);
+		PuzzlePawn->CurrentPuzzleModel = this;
 	}
 
 
@@ -320,7 +325,6 @@ void APuzzleModel::SetScreenSidePosition()
 	{
 		// Compute the camera location
 		FVector CameraLocation = CameraManager->GetCameraLocation();
-
 		FVector NewPosition = CameraLocation + (WorldDirection * AdjustedDistance);
 
 		//For bottom and top max/min
@@ -342,18 +346,27 @@ void APuzzleModel::SetScreenSidePosition()
 		float WorldZ = FMath::Lerp(TopPosition.Z - PlaneHeight, BottomPosition.Z + PlaneHeight, ScrollFactor);
 
 		// Set the new Z position
-		NewPosition.Z = WorldZ;
+		//NewPosition.Z = WorldZ;
+		ScreenSidePosition->SetWorldLocation(NewPosition);
 
-		// Make the plane always face the camera (ignoring pitch)
-		FRotator LookAtRotation = (NewPosition - CameraLocation).Rotation();
-		LookAtRotation.Pitch = 0.0f; // Ignore the pitch to avoid tilting
+		//ScreenSidePosition->SetWorldLocation(NewPosition);
+
+		FVector relativePosition = BoardMesh->GetRelativeLocation();
+		relativePosition.Z = WorldZ;
+		BoardMesh->SetRelativeLocation(relativePosition);
+		/*
+		DrawDebugSphere(GetWorld(), WorldStartPos, 10.f, 12, FColor::Green, false, -1.f, 0, 0.5f);
+		DrawDebugSphere(GetWorld(), WorldEndPos, 10.f, 12, FColor::Green, false, -1.f, 0, 0.5f);
+		DrawDebugSphere(GetWorld(), NewPosition, 10.f, 12, FColor::Magenta, false, -1.f, 0, 0.5f);
+		DrawDebugSphere(GetWorld(), TopPosition, 10.f, 12, FColor::Blue, false, -1.f, 0, 0.5f);
+		DrawDebugSphere(GetWorld(), BottomPosition, 10.f, 12, FColor::Blue, false, -1.f, 0, 0.5f);
+		*/
+		FRotator CameraRotation = CameraManager->GetCameraRotation();
 
 		// Apply the final world position and rotation
-		ScreenSidePosition->SetWorldLocation(NewPosition);
-		ScreenSidePosition->SetWorldRotation(LookAtRotation);
+		ScreenSidePosition->SetWorldRotation(CameraRotation);
 	}
 }
-
 
 void APuzzleModel::SetBoardScrollAmount(float mouseDeltaY)
 {
@@ -533,8 +546,8 @@ void APuzzleModel::MovePiecesToScreenSide()
 	{
 
 		// Updates the piece parent
-		PieceParent->AttachToComponent(ScreenSidePosition, FAttachmentTransformRules::KeepWorldTransform);
-
+		//PieceParent->AttachToComponent(ScreenSidePosition, FAttachmentTransformRules::KeepWorldTransform);
+		PieceParent->AttachToComponent(BoardMesh, FAttachmentTransformRules::KeepWorldTransform);
 		int32 CurrentRow = CurrentIndex / NumColumns;
 		int32 CurrentColumn = CurrentIndex % NumColumns;
 		
@@ -574,7 +587,7 @@ void APuzzleModel::MovePiecesToScreenSide()
 		PieceParent->SetWorldScale3D(NewScale);
 
 		//Board properties for future resets
-		PieceParent->SetBoardProperties(ScreenSidePosition, RelativePosition, AdjustedRotation, PieceParent->GetComponentRotation(), NewScale);
+		PieceParent->SetBoardProperties(BoardMesh, ScreenSidePosition, RelativePosition, AdjustedRotation, PieceParent->GetComponentRotation(), NewScale);
 
 		CurrentIndex++;
 

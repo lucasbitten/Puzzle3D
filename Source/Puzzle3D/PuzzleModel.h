@@ -33,12 +33,14 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	USceneComponent* ScreenSidePosition;
 
-
 	UPROPERTY(EditAnywhere, Category = "Components")
 	float SidePiecesDistanceFromScreen = 0.1f;
 
+
 public:	
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Board")
+	UStaticMeshComponent* BoardMesh;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Base")
 	EBaseType BaseType;

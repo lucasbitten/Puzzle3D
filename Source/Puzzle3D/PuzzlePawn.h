@@ -4,6 +4,7 @@
 
 #include "Components/TimelineComponent.h"
 #include "PuzzlePieceParentComponent.h"
+#include "PuzzleModel.h"
 #include "GI_Puzzle.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "CoreMinimal.h"
@@ -23,9 +24,6 @@ public:
 	// Sets default values for this pawn's properties
 	APuzzlePawn();
 
-
-
-
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
@@ -34,6 +32,10 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "Events")
 	FOnPieceSelected OnPieceSelected;
+
+
+	UPROPERTY(BlueprintReadOnly)
+	APuzzleModel* CurrentPuzzleModel;
 
 protected:
 
@@ -65,6 +67,16 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly)
 	bool GrabMode;
+
+
+	UPROPERTY(BlueprintReadOnly)
+	bool IsBoardMoving;	
+
+	UPROPERTY()
+	FVector2D initialMousePosition;
+
+	UPROPERTY()
+	FVector2D currentMousePosition;
 
 	UPROPERTY(BlueprintReadWrite)
 	UPuzzlePieceParentComponent* CurrentPieceComponent;
@@ -105,6 +117,7 @@ private:
 
 	void DeselectPieceComponent();
 
+	void CalculateBoardMouseDeltaY();
 
 
 	UPROPERTY(EditAnywhere, Category = "Timeline")

@@ -31,6 +31,7 @@ protected:
 	UCurveFloat* LerpCurve;
 
 	USceneComponent* boardParent;
+	USceneComponent* boardScreenSidePosition;
 	FVector boardPosition;
 	FRotator boardRotation;
 	FRotator boardRotationWorld;
@@ -107,7 +108,7 @@ public:
 	void OnReleasedIncorrectPiece();
 
 	UFUNCTION()
-	void SetBoardProperties(USceneComponent* parent, FVector position, FRotator rotation, FRotator worldRotation, FVector scale);
+	void SetBoardProperties(USceneComponent* parent, USceneComponent* screenSidePosition, FVector position, FRotator rotation, FRotator worldRotation, FVector scale);
 
 	UFUNCTION()
 	void ResetToBoard();

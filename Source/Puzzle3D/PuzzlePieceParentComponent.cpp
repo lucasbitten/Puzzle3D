@@ -386,7 +386,7 @@ void UPuzzlePieceParentComponent::InitializeLerpToBoardPositionTimeline()
 
         LerpStartPosition = GetParentInitialWorldPositionWithOffset();
 
-        FVector NewWorldPosition = boardParent->GetComponentTransform().TransformPosition(boardPosition);
+        FVector NewWorldPosition = boardScreenSidePosition->GetComponentTransform().TransformPosition(boardPosition);
         LerpEndPosition = NewWorldPosition;
 
         LerpStartRotation = GetComponentRotation();
@@ -442,9 +442,10 @@ void UPuzzlePieceParentComponent::OnReleasedIncorrectPiece()
     InitializeLerpToBoardPositionTimeline();
 }
 
-void UPuzzlePieceParentComponent::SetBoardProperties(USceneComponent* parent, FVector position, FRotator rotation, FRotator worldRotation, FVector scale)
+void UPuzzlePieceParentComponent::SetBoardProperties(USceneComponent* parent, USceneComponent* screenSidePosition, FVector position, FRotator rotation, FRotator worldRotation, FVector scale)
 {
     boardParent = parent;
+    boardScreenSidePosition = screenSidePosition;
     boardPosition = position;
     boardRotation = rotation;
     boardRotationWorld = worldRotation;

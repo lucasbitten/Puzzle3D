@@ -9,7 +9,6 @@ APuzzlePawn::APuzzlePawn()
 {
  	// Set this pawn to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
-
 }
 
 // Called when the game starts or when spawned
@@ -49,6 +48,9 @@ void APuzzlePawn::OnLeftMouseButtonPressed()
 
 void APuzzlePawn::OnLeftMouseButtonReleased()
 {
+
+	IsBoardMoving = false;
+
 	if (!CanMovePiece)
 	{
 		return;
@@ -201,49 +203,77 @@ void APuzzlePawn::HandleOnWorldPress()
 
 void APuzzlePawn::HandlePieceTouched(FHitResult& HitResult)
 {
-	if (UPuzzlePieceParentComponent* PieceParent = Cast<UPuzzlePieceParentComponent>(HitResult.Component.Get()->GetAttachParent()))
+	if (HitResult.Component.IsValid())
 	{
-		if (PieceParent->GetIsLocked())
+		if (UPuzzlePieceParentComponent* PieceParent = Cast<UPuzzlePieceParentComponent>(HitResult.Component.Get()->GetAttachParent()))
 		{
-			GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("Piece is Locked"));
+			if (PieceParent->GetIsLocked())
+			{
+				GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("Piece is Locked"));
+			}
+			else
+			{
+				CurrentPieceComponent = PieceParent;
+				if (!OriginalMaterial)
+				{
+					UMaterialInterface* material = CurrentPieceComponent->GetPieceMesh()->GetMaterial(0);
+
+					if (material)
+					{
+						OriginalMaterial = material->GetBaseMaterial();
+					}
+					else
+					{
+						UE_LOG(LogTemp, Warning, TEXT("Could not find a material to assign to OriginalMaterial"));
+					}
+				}
+
+				if (GEngine)
+				{
+					GEngine->AddOnScreenDebugMessage(
+						-1,                      // Unique message key
+						5.0f,                    // Duration in seconds
+						FColor::Cyan,            // Text color
+						FString::Printf(TEXT("OnPieceSelected %s"), *CurrentPieceComponent->GetIdentifier())
+					);
+				}
+
+				OnPieceSelected.Broadcast(CurrentPieceComponent);
+
+				if (PuzzleGameInstance && PuzzleGameInstance->ShowHints)
+				{
+					CurrentPieceComponent->GetPieceMesh()->SetMaterial(0, HintMaterial);
+				}
+
+				CanMovePiece = false;
+			}
 		}
-		else
+		else if (HitResult.Component->GetName() == "BoardMesh")
 		{
-			CurrentPieceComponent = PieceParent;
-			if (!OriginalMaterial)
+			if (!IsBoardMoving)
 			{
-				UMaterialInterface* material = CurrentPieceComponent->GetPieceMesh()->GetMaterial(0);
-
-				if (material)
+				// The hit component's name matches "BoardMesh"
+				UGameViewportClient* ViewportClient = GetWorld()->GetFirstPlayerController()->GetLocalPlayer()->ViewportClient;
+				if (ViewportClient && ViewportClient->GetMousePosition(initialMousePosition))
 				{
-					OriginalMaterial = material->GetBaseMaterial();
-				}
-				else
-				{
-					UE_LOG(LogTemp, Warning, TEXT("Could not find a material to assign to OriginalMaterial"));
+					IsBoardMoving = true;
 				}
 			}
-
-			if (GEngine)
-			{
-				GEngine->AddOnScreenDebugMessage(
-					-1,                      // Unique message key
-					5.0f,                    // Duration in seconds
-					FColor::Cyan,            // Text color
-					FString::Printf(TEXT("OnPieceSelected %s"), *CurrentPieceComponent->GetIdentifier())
-				);
-			}
-
-			OnPieceSelected.Broadcast(CurrentPieceComponent);
-
-			if (PuzzleGameInstance && PuzzleGameInstance->ShowHints)
-			{
-				CurrentPieceComponent->GetPieceMesh()->SetMaterial(0, HintMaterial);
-			}
-
-			CanMovePiece = false;
 		}
+
+		if (GEngine)
+		{
+			GEngine->AddOnScreenDebugMessage(
+				-1,                      // Unique message key
+				5.0f,                    // Duration in seconds
+				FColor::Cyan,            // Text color
+				FString::Printf(TEXT("HitResult: %s"), *HitResult.Component->GetName())  // Corrected format
+			);
+		}
+
 	}
+	
+
 }
 
 bool APuzzlePawn::IsPieceCloseToCamera()
@@ -282,6 +312,24 @@ void APuzzlePawn::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 	SetCameraCurrentPosition();
 
+	if (IsBoardMoving)
+	{
+		CalculateBoardMouseDeltaY();
+	}
+
+}
+
+void APuzzlePawn::CalculateBoardMouseDeltaY()
+{
+	UGameViewportClient* ViewportClient = GetWorld()->GetFirstPlayerController()->GetLocalPlayer()->ViewportClient;
+	if (ViewportClient && ViewportClient->GetMousePosition(currentMousePosition))
+	{
+		FVector2D deltaMousePosition = initialMousePosition - currentMousePosition;
+		if (CurrentPuzzleModel)
+		{
+			CurrentPuzzleModel->SetBoardScrollAmount(deltaMousePosition.Y);
+		}
+	}
 }
 
 void APuzzlePawn::SetCameraCurrentPosition()
