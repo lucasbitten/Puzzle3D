@@ -325,10 +325,13 @@ void APuzzleModel::SetScreenSidePosition()
 	{
 		// Compute the camera location
 		FVector CameraLocation = CameraManager->GetCameraLocation();
-		FVector NewPosition = CameraLocation + (WorldDirection * AdjustedDistance);
 
-
+		// Apply the final world position and rotation
+		FVector NewPosition = CameraLocation + (WorldDirection * AdjustedDistance); 
 		ScreenSidePosition->SetWorldLocation(NewPosition);
+		FRotator CameraRotation = CameraManager->GetCameraRotation();
+		ScreenSidePosition->SetWorldRotation(CameraRotation);
+		BoardMesh->SetWorldRotation(ScreenSidePosition->GetComponentRotation());
 
 		//For bottom and top max/min
 		FVector TopPosition = CameraLocation + (TopDirection * AdjustedDistance);
@@ -343,39 +346,51 @@ void APuzzleModel::SetScreenSidePosition()
 		FVector WorldStartPos = BoardMesh->GetComponentTransform().TransformPosition(RelativeStartPos);
 		FVector WorldEndPos = BoardMesh->GetComponentTransform().TransformPosition(RelativeEndPos);
 
-		float OffSet = 5.f;
+		// 1. Get Board's World Position
+		FVector BoardCenter = BoardMesh->GetComponentLocation();
+		FVector BoardNormal = BoardMesh->GetRightVector();
+		FTransform BoardTransform = BoardMesh->GetComponentTransform();
 
-		// Get the half height of the board with an offset so all pieces are visible
-		float PlaneHeight = FMath::Abs((WorldStartPos.Z- OffSet) - (WorldEndPos.Z+ OffSet)) / 2.0f;
+		//2. Project Vieport limits onto the same camera depth plane as the board
+		FVector AdjustedTopPosition = FVector::PointPlaneProject(TopPosition, BoardCenter, BoardNormal);
+		FVector AdjustedBottomPosition = FVector::PointPlaneProject(BottomPosition, BoardCenter, BoardNormal);
 
-		// Convert vewports world positions into `BoardMesh` local space
-		FVector LocalTopPos = BoardMesh->GetComponentTransform().InverseTransformPosition(TopPosition);
-		FVector LocalBottomPos = BoardMesh->GetComponentTransform().InverseTransformPosition(BottomPosition);
+		FVector LocalTopPosBound = BoardTransform.InverseTransformPosition(AdjustedTopPosition);
+		FVector LocalBottomPosBound = BoardTransform.InverseTransformPosition(AdjustedBottomPosition);
+
+		//3. Project the Start/End position of the pieces based on the plane
+		FVector AdjustedStartPosition = FVector::PointPlaneProject(WorldStartPos, BoardCenter, BoardNormal);
+		FVector AdjustedEndPosition = FVector::PointPlaneProject(WorldEndPos, BoardCenter, BoardNormal);
+
+		FVector LocalStartPosBound = BoardTransform.InverseTransformPosition(AdjustedStartPosition);
+		FVector LocalEndPosBound = BoardTransform.InverseTransformPosition(AdjustedEndPosition);
+
+		// 4. Interpolate Relative Z in Camera Space
+		float PlaneHeight = FMath::Abs((LocalStartPosBound.Z) - (LocalEndPosBound.Z));// / 2.0f;
 
 		// Calculate the **relative Z** position based on scroll factor
 		float ScrollFactor = boardScrollAmount / 100.0f;
-		float RelativeZ = FMath::Lerp(LocalTopPos.Z - PlaneHeight, LocalBottomPos.Z + PlaneHeight, ScrollFactor);
+		float OffSet = 25.0f;
+		float RelativeZ = FMath::Lerp((LocalTopPosBound.Z - OffSet) - PlaneHeight, (LocalBottomPosBound.Z + OffSet) + PlaneHeight, ScrollFactor);
 
-		// Set only the relative Z position (keeping X and Y unchanged)
+		// 5. Apply the Adjusted Position (Keeping X & Y Unchanged)
 		FVector RelativeBoardPosition = BoardMesh->GetRelativeLocation();
 		RelativeBoardPosition.Z = RelativeZ;
 		BoardMesh->SetRelativeLocation(RelativeBoardPosition);
-
-		FRotator CameraRotation = CameraManager->GetCameraRotation();
-
-		// Apply the final world position and rotation
-		ScreenSidePosition->SetWorldRotation(CameraRotation);
-
+	
 		/*
 		FVector WorldBoardPos = BoardMesh->GetComponentTransform().TransformPosition(RelativeBoardPosition);
-
-		DrawDebugSphere(GetWorld(), WorldStartPos, 3.f, 12, FColor::Green, false, -1.f, 0, 0.5f);
-		DrawDebugSphere(GetWorld(), WorldEndPos, 3.f, 12, FColor::Red, false, -1.f, 0, 0.5f);
+		FVector WorldBoardStart = BoardMesh->GetComponentTransform().TransformPosition(FVector(LocalTopPosBound.X, LocalTopPosBound.Y, LocalTopPosBound.Z - OffSet - PlaneHeight));
+		FVector WorldBoardEnd = BoardMesh->GetComponentTransform().TransformPosition(FVector(LocalBottomPosBound.X, LocalBottomPosBound.Y, LocalBottomPosBound.Z + OffSet + PlaneHeight));
+		
+		DrawDebugSphere(GetWorld(), AdjustedStartPosition, 3.f, 12, FColor::Green, false, -1.f, 0, 0.5f);
+		DrawDebugSphere(GetWorld(), AdjustedEndPosition, 3.f, 12, FColor::Red, false, -1.f, 0, 0.5f);
 		DrawDebugSphere(GetWorld(), WorldBoardPos, 3.f, 12, FColor::Magenta, false, -1.f, 0, 0.5f);
-		DrawDebugSphere(GetWorld(), TopPosition, 3.f, 12, FColor::Blue, false, -1.f, 0, 0.5f);
-		DrawDebugSphere(GetWorld(), BottomPosition, 3.f, 12, FColor::Purple, false, -1.f, 0, 0.5f);
+		DrawDebugSphere(GetWorld(), AdjustedTopPosition, 3.f, 12, FColor::Blue, false, -1.f, 0, 0.5f);
+		DrawDebugSphere(GetWorld(), AdjustedBottomPosition, 3.f, 12, FColor::Purple, false, -1.f, 0, 0.5f);
 
-		DrawDebugLine(GetWorld(), WorldStartPos, WorldEndPos, FColor::Green, false, -1.0f, 0, 2.0f);
+		DrawDebugLine(GetWorld(), WorldBoardStart, WorldBoardEnd, FColor::Cyan, false, -1.0f, 0, 1.0f);
+		DrawDebugLine(GetWorld(), AdjustedStartPosition, AdjustedEndPosition, FColor::Orange, false, -1.0f, 0, 1.0f);
 		*/
 
 	}
