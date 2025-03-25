@@ -327,44 +327,57 @@ void APuzzleModel::SetScreenSidePosition()
 		FVector CameraLocation = CameraManager->GetCameraLocation();
 		FVector NewPosition = CameraLocation + (WorldDirection * AdjustedDistance);
 
+
+		ScreenSidePosition->SetWorldLocation(NewPosition);
+
 		//For bottom and top max/min
 		FVector TopPosition = CameraLocation + (TopDirection * AdjustedDistance);
 		FVector BottomPosition = CameraLocation + (BottomDirection * AdjustedDistance);
 
+
+		// Get the relative start and end positions of the board in `BoardMesh` local space
+		FVector RelativeStartPos = PiecesInBoard[0]->GetBoardPosition(); // Local top boundary
+		FVector RelativeEndPos = PiecesInBoard.Last()->GetBoardPosition(); // Local bottom boundary
+
+		// Convert those into world space
+		FVector WorldStartPos = BoardMesh->GetComponentTransform().TransformPosition(RelativeStartPos);
+		FVector WorldEndPos = BoardMesh->GetComponentTransform().TransformPosition(RelativeEndPos);
+
+		float OffSet = 5.f;
+
+		// Get the half height of the board with an offset so all pieces are visible
+		float PlaneHeight = FMath::Abs((WorldStartPos.Z- OffSet) - (WorldEndPos.Z+ OffSet)) / 2.0f;
+
+		// Convert vewports world positions into `BoardMesh` local space
+		FVector LocalTopPos = BoardMesh->GetComponentTransform().InverseTransformPosition(TopPosition);
+		FVector LocalBottomPos = BoardMesh->GetComponentTransform().InverseTransformPosition(BottomPosition);
+
+		// Calculate the **relative Z** position based on scroll factor
 		float ScrollFactor = boardScrollAmount / 100.0f;
+		float RelativeZ = FMath::Lerp(LocalTopPos.Z - PlaneHeight, LocalBottomPos.Z + PlaneHeight, ScrollFactor);
 
-		// Get the start and end world positions of the board (calculated from the relative positions of pieces on the board)
-		FVector WorldStartPos = ScreenSidePosition->GetComponentTransform().TransformPosition(PiecesInBoard[0]->GetBoardPosition()); // Top position
-		FVector WorldEndPos = ScreenSidePosition->GetComponentTransform().TransformPosition(PiecesInBoard.Last()->GetBoardPosition()); // Bottom position
+		// Set only the relative Z position (keeping X and Y unchanged)
+		FVector RelativeBoardPosition = BoardMesh->GetRelativeLocation();
+		RelativeBoardPosition.Z = RelativeZ;
+		BoardMesh->SetRelativeLocation(RelativeBoardPosition);
 
-		float OffSet = 12.5f;
-
-		// Get the local height of the plane
-		float PlaneHeight = FMath::Abs((WorldStartPos.Z-OffSet) - (WorldEndPos.Z+OffSet)) / 2.0f;
-		// We want the **top** of the plane to match `WorldTopLimit` when CustomPoint = 0
-		// and the **bottom** of the plane to match `WorldBottomLimit` when CustomPoint = 100
-		float WorldZ = FMath::Lerp(TopPosition.Z - PlaneHeight, BottomPosition.Z + PlaneHeight, ScrollFactor);
-
-		// Set the new Z position
-		//NewPosition.Z = WorldZ;
-		ScreenSidePosition->SetWorldLocation(NewPosition);
-
-		//ScreenSidePosition->SetWorldLocation(NewPosition);
-
-		FVector relativePosition = BoardMesh->GetRelativeLocation();
-		relativePosition.Z = WorldZ;
-		BoardMesh->SetRelativeLocation(relativePosition);
-		/*
-		DrawDebugSphere(GetWorld(), WorldStartPos, 10.f, 12, FColor::Green, false, -1.f, 0, 0.5f);
-		DrawDebugSphere(GetWorld(), WorldEndPos, 10.f, 12, FColor::Green, false, -1.f, 0, 0.5f);
-		DrawDebugSphere(GetWorld(), NewPosition, 10.f, 12, FColor::Magenta, false, -1.f, 0, 0.5f);
-		DrawDebugSphere(GetWorld(), TopPosition, 10.f, 12, FColor::Blue, false, -1.f, 0, 0.5f);
-		DrawDebugSphere(GetWorld(), BottomPosition, 10.f, 12, FColor::Blue, false, -1.f, 0, 0.5f);
-		*/
 		FRotator CameraRotation = CameraManager->GetCameraRotation();
 
 		// Apply the final world position and rotation
 		ScreenSidePosition->SetWorldRotation(CameraRotation);
+
+		/*
+		FVector WorldBoardPos = BoardMesh->GetComponentTransform().TransformPosition(RelativeBoardPosition);
+
+		DrawDebugSphere(GetWorld(), WorldStartPos, 3.f, 12, FColor::Green, false, -1.f, 0, 0.5f);
+		DrawDebugSphere(GetWorld(), WorldEndPos, 3.f, 12, FColor::Red, false, -1.f, 0, 0.5f);
+		DrawDebugSphere(GetWorld(), WorldBoardPos, 3.f, 12, FColor::Magenta, false, -1.f, 0, 0.5f);
+		DrawDebugSphere(GetWorld(), TopPosition, 3.f, 12, FColor::Blue, false, -1.f, 0, 0.5f);
+		DrawDebugSphere(GetWorld(), BottomPosition, 3.f, 12, FColor::Purple, false, -1.f, 0, 0.5f);
+
+		DrawDebugLine(GetWorld(), WorldStartPos, WorldEndPos, FColor::Green, false, -1.0f, 0, 2.0f);
+		*/
+
 	}
 }
 
@@ -375,7 +388,16 @@ void APuzzleModel::SetBoardScrollAmount(float mouseDeltaY)
 
 	// Clamp customPos to be within bounds (0 to 100)
 	boardScrollAmount = FMath::Clamp(boardScrollAmount, 0.0f, 100.0f);
-
+	/*
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(
+			-1,                      // Unique message key
+			5.0f,                    // Duration in seconds
+			FColor::Cyan,            // Text color
+			FString::Printf(TEXT("HitResult: %.2f"), boardScrollAmount)  // Corrected format
+		);
+	}*/
 }
 
 TArray<UInnerMesh*> APuzzleModel::GetInnerMeshComponents() const

@@ -260,7 +260,7 @@ void APuzzlePawn::HandlePieceTouched(FHitResult& HitResult)
 				}
 			}
 		}
-
+		/*
 		if (GEngine)
 		{
 			GEngine->AddOnScreenDebugMessage(
@@ -269,7 +269,7 @@ void APuzzlePawn::HandlePieceTouched(FHitResult& HitResult)
 				FColor::Cyan,            // Text color
 				FString::Printf(TEXT("HitResult: %s"), *HitResult.Component->GetName())  // Corrected format
 			);
-		}
+		}*/
 
 	}
 	
