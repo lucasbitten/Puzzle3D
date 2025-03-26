@@ -91,16 +91,16 @@ public:
 	float boardRowOffset = 6.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Board")
-	FVector2D boardGridOffset = FVector2D(0.0f, 0.0f);
+	FVector2D boardGridOffset = FVector2D(-5.0f, 0.0f);
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Board")
 	bool isScrollingBoard = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Board")
-	float boardScrollAmount = 0.0f;
+	float boardScrollAmount = 50.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Board")
-	float boardScrollSpeed = 0.2f;
+	float boardScrollSpeed = 0.001f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera Movement")
 	float MaxCameraDistance = 400;
